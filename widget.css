@@ -1,0 +1,245 @@
+/* ================================================================
+   WISTORIX · DRIVE WIDGET — style (nằm trong Shadow DOM, không đụng CSS của Drive)
+   Nguồn: wistorix-widget-demo 1.2 (wistorix-widget-demo12.vercel.app)
+   ================================================================ */
+:host{all:initial;
+  /* Wistorix light tokens — đồng bộ dashboard v5 */
+  --blue:#0052CD; --blue-end:#058EF4; --deep:#021E6B; --navy:#041335;
+  /* gradient thương hiệu = đúng dải màu logo WS: deep #021E6B → primary #0052CD → bright #058EF4 */
+  --grad:linear-gradient(135deg,#021E6B 0%,#0052CD 52%,#058EF4 100%);
+  --bg:#F4F6FB; --surface:#fff; --border:#DDE3EF; --border-soft:#EAEEF6;
+  --muted:#6B7A99; --subtle:#94A3B8;
+  --tintA:#F0F6FF; --tintB:#E3EEFF; --tint-line:#BFD3F5;
+  --danger:#EF4444; --danger-d:#DC2626; --risk-bg:#FFF5F5; --risk-line:rgba(239,68,68,.25); --risk-txt:#7F1D1D;
+  --warn:#B45309; --warn-bg:#FFFBEB; --warn-line:rgba(245,158,11,.35);
+  --ok:#047857; --ok-bg:#ECFDF5; --ok-line:rgba(16,185,129,.3);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+/* mọi UI Wistorix dùng Manrope */
+#wxPanel,#wxQuick,#wxToast,#wxTip,#wxBubble,.chip{font-family:'WX Manrope','Manrope',system-ui,sans-serif}
+
+/* icon outline (kiểu Qranty — đồng bộ dashboard v5) */
+.ic{width:1em;height:1em;display:inline-block;vertical-align:-0.14em;flex:0 0 auto;
+  fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.wslogo{display:block}
+
+/* chip cờ trạng thái */
+.chip{font-size:9px;font-weight:800;letter-spacing:.08em;border-radius:4px;padding:2.5px 7px;margin-left:8px;vertical-align:1px;display:inline-flex;align-items:center;gap:4px}
+.chip .ic{width:10px;height:10px}
+.chip.pub{background:var(--risk-bg);color:var(--danger-d);border:1px solid var(--risk-line)}
+.chip.dup{background:var(--warn-bg);color:var(--warn);border:1px solid var(--warn-line)}
+
+/* ══════════ BUBBLE — lõi TRẮNG + viền gradient thương hiệu ══════════ */
+#wxBubble{position:fixed;z-index:2147483600;width:58px;height:58px;border-radius:50%;cursor:grab;user-select:none;touch-action:none;
+  border:3px solid transparent;
+  background-image:linear-gradient(#fff,#fff),var(--grad);
+  background-origin:border-box;background-clip:padding-box,border-box;
+  box-shadow:0 8px 24px rgba(0,82,205,.28),0 2px 6px rgba(13,27,62,.15);
+  display:grid;place-items:center;transition:box-shadow .2s, transform .15s}
+#wxBubble:hover{transform:scale(1.06);box-shadow:0 10px 28px rgba(4,135,241,.38)}
+#wxBubble.dragging{cursor:grabbing;transform:scale(1.1);transition:none}
+#wxBubble.snap{transition:left .28s cubic-bezier(.22,1,.36,1), top .28s cubic-bezier(.22,1,.36,1), transform .15s}
+#wxBubble.dropTarget{box-shadow:0 0 0 6px rgba(4,135,241,.25),0 8px 24px rgba(0,82,205,.35);transform:scale(1.15)}
+#wxBubble .wslogo{width:32px;height:32px;pointer-events:none}
+#wxBadge{position:absolute;top:-5px;right:-5px;min-width:20px;height:20px;border-radius:10px;background:var(--danger);color:#fff;font-size:11px;font-weight:800;display:grid;place-items:center;padding:0 5px;border:2px solid #fff;font-family:inherit}
+#wxTip{position:fixed;z-index:2147483601;background:var(--navy);color:#fff;font-size:12px;font-weight:600;padding:6px 12px;border-radius:6px;opacity:0;pointer-events:none;transition:opacity .2s;white-space:nowrap}
+
+/* quick menu (kéo file thả vào bong bóng) */
+#wxQuick{position:fixed;z-index:2147483602;background:var(--surface);border:1px solid var(--border);border-radius:8px;box-shadow:0 14px 38px rgba(13,27,62,.18);padding:6px;min-width:236px;display:none}
+#wxQuick.show{display:block;animation:qin .18s ease}
+@keyframes qin{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+#wxQuick .qh{font-size:11px;font-weight:700;color:var(--muted);padding:8px 10px 9px;border-bottom:1px solid var(--border-soft);margin-bottom:4px;max-width:244px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:flex;align-items:center;gap:7px}
+#wxQuick .qh .ic{color:var(--blue)}
+#wxQuick button{display:flex;align-items:center;gap:10px;width:100%;border:0;background:none;font-family:inherit;font-size:12.5px;font-weight:600;color:var(--navy);padding:9px 10px;border-radius:6px;cursor:pointer;text-align:left}
+#wxQuick button .ic{color:var(--blue);font-size:14px}
+#wxQuick button:hover{background:var(--tintA)}
+
+/* ══════════ PANEL — 65% trắng, 35% thương hiệu ══════════ */
+#wxPanel{position:fixed;z-index:2147483599;top:10px;right:10px;bottom:10px;width:378px;
+  background:var(--bg);border:1px solid var(--border);border-radius:12px;
+  box-shadow:-18px 0 52px rgba(13,27,62,.2);display:flex;flex-direction:column;overflow:hidden;
+  transform:translateX(calc(100% + 80px));transition:transform .32s cubic-bezier(.22,1,.36,1)}
+#wxPanel.open{transform:none}
+
+/* header = dải gradient thương hiệu */
+.wx-head{display:flex;align-items:center;gap:11px;padding:14px 16px;flex:none;background:var(--grad);position:relative;overflow:hidden}
+.wx-head::after{content:"";position:absolute;right:-30px;top:-46px;width:150px;height:150px;border-radius:50%;background:rgba(255,255,255,.12);pointer-events:none}
+.wx-head .mini{width:34px;height:34px;border-radius:8px;background:#fff;display:grid;place-items:center;flex:none;box-shadow:0 2px 6px rgba(2,30,107,.3)}
+.wx-head .mini .wslogo{width:23px;height:23px}
+.wx-head .t{line-height:1.25}
+.wx-head .t b{font-size:15px;color:#fff;display:block;letter-spacing:.01em}
+.wx-head .t span{font-size:11px;color:rgba(255,255,255,.8)}
+.wx-x{margin-left:auto;width:28px;height:28px;border-radius:6px;border:1px solid rgba(255,255,255,.4);background:none;color:#fff;font-size:13px;cursor:pointer;display:grid;place-items:center;position:relative;font-family:inherit}
+.wx-x:hover{background:rgba(255,255,255,.18)}
+.wx-.wx-foot{flex:none;padding:12px 14px;background:var(--surface);border-top:1px solid var(--border)}
+.wx-dash{width:100%;border:0;border-radius:6px;background:var(--grad);color:#fff;font-family:inherit;font-size:13px;font-weight:700;padding:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 3px 10px rgba(0,82,205,.3)}
+.wx-dash:hover{filter:brightness(1.08)}
+
+/* ── GROUP: thẻ trắng nổi trên nền bg ── */
+.grp{background:var(--surface);border:1px solid var(--border);border-radius:8px;margin-bottom:12px;overflow:hidden;box-shadow:0 1px 3px rgba(13,27,62,.05)}
+.grp-h{display:flex;align-items:center;gap:8px;padding:11px 14px 10px;border-bottom:1px solid var(--border-soft)}
+.grp.drop>.grp-h{cursor:pointer;user-select:none}
+.grp.drop>.grp-h:hover{background:var(--tintA)}
+.grp-h .chev{margin-left:2px;color:var(--subtle);font-size:12px;transition:transform .2s}
+.grp.closed>.grp-h{border-bottom:0}
+.grp.closed>.grp-h .chev{transform:rotate(-90deg)}
+.grp.closed>.grp-b{display:none}
+.grp-h .ic{color:var(--blue);width:14px;height:14px}
+.grp-h span{font-size:10.5px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--blue)}
+.grp-h .cnt{margin-left:auto;font-size:10px;font-weight:800;color:var(--blue);background:var(--tintA);border:1px solid var(--tint-line);border-radius:4px;padding:1.5px 8px}
+.grp-h .cnt.warn{color:var(--danger-d);background:var(--risk-bg);border-color:var(--risk-line)}
+.grp-b{padding:13px 14px}
+
+/* file context card */
+.wx-fcard{display:flex;gap:12px;align-items:flex-start}
+.wx-fcard .ftile{width:40px;height:40px;border-radius:8px;background:var(--tintA);border:1px solid var(--tint-line);display:grid;place-items:center;flex:none;color:var(--blue);font-size:19px}
+.wx-fcard .fn{font-size:14px;font-weight:800;color:var(--navy);word-break:break-all;line-height:1.35}
+.wx-fcard .fp{font-size:11.5px;color:var(--muted);margin-top:4px;line-height:1.5}
+.wx-fcard .fp a{color:var(--blue);text-decoration:none;font-weight:700;cursor:pointer}
+.wx-flags{margin-top:9px;display:flex;gap:6px;flex-wrap:wrap}
+.wx-flags .chip{margin-left:0}
+.chip.dk-pub{background:var(--risk-bg);color:var(--danger-d);border:1px solid var(--risk-line)}
+.chip.dk-dup{background:var(--warn-bg);color:var(--warn);border:1px solid var(--warn-line)}
+.chip.dk-ok{background:var(--ok-bg);color:var(--ok);border:1px solid var(--ok-line)}
+
+/* quick actions — 3 cột */
+.wx-acts{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.wx-act{border:1px solid var(--border);background:var(--surface);border-radius:6px;padding:9px 10px;display:flex;align-items:center;gap:8px;cursor:pointer;font-family:inherit;transition:all .12s}
+.wx-act:hover{background:var(--tintA);border-color:var(--tint-line)}
+.wx-act .ic{font-size:14px;color:var(--blue)}
+.wx-act .l{font-size:10.5px;font-weight:700;color:var(--navy);white-space:nowrap}
+.wx-act.dngr .ic{color:var(--danger)}
+.wx-act.dngr:hover{background:var(--risk-bg);border-color:var(--risk-line)}
+
+/* info rows */
+.wx-kv{display:flex;justify-content:space-between;gap:12px;font-size:12.5px;padding:7.5px 0;border-bottom:1px solid var(--border-soft)}
+.wx-kv:last-child{border-bottom:0;padding-bottom:0}
+.wx-kv:first-child{padding-top:0}
+.wx-kv .k{color:var(--muted);flex:none}
+.wx-kv .v{font-weight:700;color:var(--navy);text-align:right;word-break:break-all}
+
+/* permissions */
+.wx-warn{display:flex;gap:10px;align-items:flex-start;background:var(--risk-bg);border:1px solid var(--risk-line);border-radius:6px;padding:11px 13px;font-size:12px;color:var(--risk-txt);line-height:1.55;margin-bottom:12px}
+.wx-warn>.ic{color:var(--danger);font-size:15px;margin-top:1px}
+.wx-warn b{display:block;color:var(--danger-d);font-size:12.5px}
+.wx-warn button{margin-top:9px;border:0;background:linear-gradient(135deg,#DC2626,#EF4444);color:#fff;font-family:inherit;font-size:11px;font-weight:800;border-radius:6px;padding:7px 12px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;box-shadow:0 2px 6px rgba(220,38,38,.3)}
+.wx-warn button:hover{filter:brightness(1.08)}
+.wx-em{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border-soft);font-size:12.5px}
+.wx-em:last-of-type{border-bottom:0}
+.wx-em .av{width:27px;height:27px;border-radius:6px;background:var(--tintA);border:1px solid var(--tint-line);color:var(--blue);font-size:11px;font-weight:800;display:grid;place-items:center;flex:none}
+.wx-em .em{flex:1;min-width:0}
+.wx-em .em b{display:block;font-weight:700;color:var(--navy);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wx-em .em span{font-size:11px;color:var(--subtle)}
+.wx-rv{border:1px solid var(--risk-line);background:#fff;color:var(--danger-d);font-family:inherit;font-size:10.5px;font-weight:800;border-radius:6px;padding:5px 10px;cursor:pointer;flex:none}
+.wx-rv:hover{background:var(--risk-bg)}
+.wx-only{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:8px}
+.wx-only .ic{color:#10B981}
+.wx-sub{border-top:1px solid var(--border-soft);margin-top:12px;padding-top:12px}
+.wx-expiry{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted)}
+.wx-expiry .ic{color:var(--blue)}
+.wx-expiry select{font-family:inherit;font-size:12px;font-weight:600;border:1px solid var(--border);border-radius:6px;padding:6px 9px;color:var(--navy);background:#fff;margin-left:auto;cursor:pointer}
+.wx-link{display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:700;color:var(--blue);cursor:pointer;margin-top:11px}
+.wx-link:hover{text-decoration:underline}
+
+/* duplicates */
+.wx-dup{border:1px solid var(--border);border-radius:6px;padding:10px 12px;margin-bottom:8px;display:flex;gap:10px;align-items:flex-start;background:#fff}
+.wx-dup.keep{border-color:var(--blue);background:var(--tintA)}
+.wx-dup .di{color:var(--blue);font-size:15px;margin-top:2px}
+.wx-dup .dm{flex:1;min-width:0;font-size:11px;color:var(--muted);line-height:1.55}
+.wx-dup .dm b{display:block;font-size:12px;color:var(--navy)}
+.wx-dup .tg{flex:none;border:1px solid var(--border);border-radius:6px;background:#fff;font-family:inherit;font-size:10px;font-weight:800;letter-spacing:.06em;padding:5px 11px;cursor:pointer;color:var(--muted)}
+.wx-dup.keep .tg{background:var(--grad);border-color:transparent;color:#fff}
+.wx-dupbtn{width:100%;margin-top:4px;border:1px solid var(--risk-line);background:#fff;color:var(--danger-d);font-family:inherit;font-size:11.5px;font-weight:800;border-radius:6px;padding:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px}
+.wx-dupbtn:hover{background:var(--risk-bg)}
+
+/* storage */
+.wx-sbar{height:8px;border-radius:4px;background:var(--border-soft);overflow:hidden;margin:9px 0 7px}
+.wx-sbar i{display:block;height:100%;background:var(--grad);width:58%;border-radius:4px}
+.wx-snum{display:flex;justify-content:space-between;font-size:11.5px;color:var(--muted)}
+.wx-snum b{color:var(--navy)}
+.wx-free{margin-top:11px;background:var(--ok-bg);border:1px solid var(--ok-line);color:var(--ok);font-size:12px;font-weight:700;border-radius:6px;padding:9px 12px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.wx-scan{border:1px solid var(--tint-line);background:#fff;color:var(--blue);font-size:10.5px;font-weight:800;font-family:inherit;border-radius:6px;padding:6px 10px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.wx-scan:hover{background:var(--tintA)}
+
+/* rename & move inline */
+.wx-inline{margin-top:11px;display:none}
+.wx-inline.show{display:block;animation:qin .18s ease}
+.wx-inline input{width:100%;font-family:inherit;font-size:13px;font-weight:600;border:1.5px solid var(--blue);border-radius:6px;padding:9px 11px;outline:none;color:var(--navy);background:#fff}
+.wx-inline .row{display:flex;gap:8px;margin-top:9px}
+.wx-inline .row button{flex:1;font-family:inherit;font-size:11.5px;font-weight:800;border-radius:6px;padding:9px;cursor:pointer;border:1px solid var(--border);background:#fff;color:var(--muted)}
+.wx-inline .row button:hover{background:var(--bg)}
+.wx-inline .row button.pri{background:var(--grad);border:0;color:#fff;box-shadow:0 2px 6px rgba(0,82,205,.25)}
+.wx-inline .row button.pri:hover{filter:brightness(1.08)}
+.wx-tree{border:1px solid var(--border);border-radius:6px;max-height:172px;overflow-y:auto;padding:5px;background:#fff}
+.wx-tnode{display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:600;color:var(--navy);padding:7px 9px;border-radius:5px;cursor:pointer}
+.wx-tnode .ic{color:var(--blue);font-size:13px}
+.wx-tnode:hover{background:var(--tintA)}
+.wx-tnode.sel{background:var(--tintB);color:var(--deep);outline:1px solid var(--blue)}
+.wx-tnode .pad{flex:none}
+
+/* overview */
+.wx-alert{display:flex;gap:11px;align-items:center;padding:10px 12px;margin-bottom:8px;cursor:pointer;border:1px solid var(--border);border-radius:6px;background:#fff;transition:all .12s}
+.wx-alert:hover{border-color:var(--tint-line);background:var(--tintA)}
+.wx-alert:last-child{margin-bottom:0}
+.wx-alert .ai{width:31px;height:31px;border-radius:6px;display:grid;place-items:center;font-size:14px;flex:none}
+.wx-alert .ai.r{background:var(--risk-bg);color:var(--danger);border:1px solid var(--risk-line)}
+.wx-alert .ai.a{background:var(--warn-bg);color:var(--warn);border:1px solid var(--warn-line)}
+.wx-alert .am{flex:1;min-width:0;font-size:11px;color:var(--muted);line-height:1.5}
+.wx-alert .am b{display:block;font-size:12px;color:var(--navy)}
+.wx-alert .go{color:var(--blue);font-size:13px}
+.wx-empty{font-size:12px;color:#41598E;line-height:1.7;border:1px dashed var(--tint-line);border-radius:8px;padding:12px 14px;margin-bottom:12px;background:var(--tintA)}
+.wx-empty b{color:var(--blue)}
+
+/* bulk */
+.wx-bulk{background:var(--grad);color:#fff;border-radius:8px;padding:12px 14px;font-size:12px;margin-bottom:12px;box-shadow:0 3px 10px rgba(0,82,205,.25)}
+.wx-bulk b{font-size:13px;display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.wx-bulk .row{display:flex;gap:8px}
+.wx-bulk .row button{flex:1;border:1px solid rgba(255,255,255,.4);background:rgba(255,255,255,.12);color:#fff;font-family:inherit;font-size:10.5px;font-weight:700;border-radius:6px;padding:8px 4px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px}
+.wx-bulk .row button:hover{background:rgba(255,255,255,.24)}
+
+/* toast */
+#wxToast{position:fixed;left:18px;bottom:18px;z-index:2147483603;background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--blue);color:var(--navy);font-size:12.5px;font-weight:600;border-radius:6px;padding:12px 16px;box-shadow:0 10px 30px rgba(13,27,62,.18);opacity:0;transform:translateY(8px);transition:all .25s;pointer-events:none;max-width:360px;line-height:1.55}
+#wxToast.show{opacity:1;transform:none}
+#wxToast b{color:var(--blue)}
+
+.wx-body::-webkit-scrollbar{width:6px}.wx-body::-webkit-scrollbar-thumb{background:#C9D4E8;border-radius:3px}
+
+/* ══════════ BỔ SUNG CHO BẢN CHẠY TRÊN DRIVE THẬT ══════════ */
+#wxBubble{font-family:'WX Manrope','Manrope',system-ui,sans-serif}
+#wxBubble.pulse{animation:wxpulse .9s ease}
+@keyframes wxpulse{0%{box-shadow:0 0 0 0 rgba(4,135,241,.45),0 8px 24px rgba(0,82,205,.28)}100%{box-shadow:0 0 0 14px rgba(4,135,241,0),0 8px 24px rgba(0,82,205,.28)}}
+.wx-pill{display:inline-block;margin-left:6px;font-size:9px;font-weight:800;letter-spacing:.08em;color:#fff;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.4);border-radius:4px;padding:1px 6px;vertical-align:1px}
+.wx-back{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:700;color:var(--blue);cursor:pointer;margin:0 0 10px 2px;border:0;background:none;font-family:inherit;padding:0}
+.wx-back .ic{transform:rotate(180deg)}
+.wx-back:hover{text-decoration:underline}
+.wx-fcard .fp a{display:inline-flex;align-items:center;gap:4px}
+.wx-note{font-size:11px;color:var(--muted);line-height:1.55;margin-top:9px}
+.wx-act[disabled],.wx-scan[disabled]{opacity:.55;cursor:default}
+.wx-act{min-width:0}
+.wx-act .l{overflow:hidden;text-overflow:ellipsis}
+.wx-tree .wx-tnote{font-size:11.5px;color:var(--muted);padding:8px 9px;line-height:1.5}
+.wx-flash{outline:3px solid #058EF4 !important;outline-offset:2px;border-radius:8px}
+button{font-family:inherit}
+
+/* ══════════ 1.3 · CHẾ ĐỘ DRIVE THẬT ══════════ */
+.wx-mode{display:flex;gap:10px;align-items:center;background:var(--tintA);border:1px solid var(--tint-line);border-radius:8px;padding:11px 12px;margin-bottom:12px;font-size:11.5px;color:#41598E;line-height:1.5}
+.wx-mode>.ic{color:var(--blue);font-size:16px;flex:none}
+.wx-mode b{display:block;color:var(--navy);font-size:12.5px}
+.wx-mode button{flex:none;border:0;border-radius:6px;background:var(--grad);color:#fff;font-size:11.5px;font-weight:800;padding:8px 12px;cursor:pointer;box-shadow:0 2px 6px rgba(0,82,205,.25)}
+.wx-mode button[disabled]{opacity:.6;cursor:default}
+.wx-setup{background:var(--warn-bg);border:1px solid var(--warn-line);border-radius:8px;padding:12px 13px;margin-bottom:12px;font-size:11.5px;color:#78350F;line-height:1.6}
+.wx-setup>b{display:flex;align-items:center;gap:7px;color:var(--warn);font-size:12.5px;margin-bottom:4px}
+.wx-setup ol{padding-left:18px}
+.wx-setup li{margin:3px 0}
+.wx-setup code{font-family:ui-monospace,Menlo,monospace;font-size:11px;background:#fff;border:1px solid var(--warn-line);border-radius:4px;padding:1px 5px;word-break:break-all}
+.wx-setup a{color:var(--blue);font-weight:800;cursor:pointer;margin-left:4px}
+.wx-footnote{font-size:11px;color:var(--muted);text-align:center;margin-bottom:8px}
+.wx-footnote:empty{display:none}
+.wx-footnote a{color:var(--blue);font-weight:700;cursor:pointer}
+.wx-loading{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--muted)}
+.wx-loading i{width:6px;height:6px;border-radius:50%;background:var(--blue);opacity:.3;animation:wxdot 1s infinite}
+.wx-loading i:nth-child(2){animation-delay:.15s}.wx-loading i:nth-child(3){animation-delay:.3s;margin-right:6px}
+@keyframes wxdot{0%,100%{opacity:.25}50%{opacity:1}}
+.wx-warn a{color:var(--danger-d);font-weight:800}
+.wx-pill:empty{display:none}
+.wx-setup button{margin-top:8px;border:0;border-radius:6px;background:var(--grad);color:#fff;font-size:11px;font-weight:800;padding:7px 12px;cursor:pointer}
