@@ -1,30 +1,69 @@
 {
   "manifest_version": 3,
   "name": "Wistorix Drive Widget",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "description": "Bong bóng Wistorix ngay trên Google Drive: xem nhanh quyền chia sẻ, trùng lặp, dung lượng và thao tác với tệp đang chọn.",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvMTyHVcMCKwIdAmFF5AJK78J4MwcKLa8HtaVoWs3W5wAG+LJnraxn4DywkZEbnwYuZ4fCCuZALofrxtha2OgtYrwc1l3gApPqMO/RFnwYgdcpRwpa2fBzkUtyHT5k+tcoBqsocRCNciHkTXX9jcZLKH0U6DKPpmXb6qmW8BdsGJghnvMjt61aUxObRTj6pAA5NTTvKmeymDSJeqEO71TjCAfNixjHytOpCH6UAWWQOoWzQkCPlX4d3bZBPR4E02FoGGh7XnYPkS8CG5/wKMmc9au1FfvwOgiIDDqUoPWQzOrgg06P7M4sjU8u/8uewRuUMphiAEkpmzPVGUbCbkzyQIDAQAB",
-  "icons": { "16": "icons/icon-16.png", "32": "icons/icon-32.png", "48": "icons/icon-48.png", "128": "icons/icon-128.png" },
-  "action": {
-    "default_title": "Wistorix: mở/đóng panel trên Google Drive",
-    "default_icon": { "16": "icons/icon-16.png", "32": "icons/icon-32.png" }
+  "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
   },
-  "background": { "service_worker": "background.js" },
-  "permissions": ["storage", "identity"],
-  "host_permissions": ["https://www.googleapis.com/*", "https://oauth2.googleapis.com/*"],
+  "action": {
+    "default_title": "Wistorix: mở panel cạnh trang",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "32": "icons/icon-32.png"
+    }
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "permissions": [
+    "storage",
+    "identity",
+    "sidePanel"
+  ],
+  "host_permissions": [
+    "https://www.googleapis.com/*",
+    "https://oauth2.googleapis.com/*",
+    "https://driveactivity.googleapis.com/*"
+  ],
   "oauth2": {
     "client_id": "840371714109-q4sq4kjpqqskr6aeb5tmecijdt58qnm2.apps.googleusercontent.com",
-    "scopes": ["https://www.googleapis.com/auth/drive"]
+    "scopes": [
+      "https://www.googleapis.com/auth/drive",
+      "https://www.googleapis.com/auth/drive.activity.readonly"
+    ]
   },
   "content_scripts": [
     {
-      "matches": ["https://drive.google.com/*"],
-      "js": ["content.js"],
+      "matches": [
+        "https://drive.google.com/*"
+      ],
+      "js": [
+        "shared.js",
+        "content.js"
+      ],
       "run_at": "document_idle",
       "all_frames": false
     }
   ],
   "web_accessible_resources": [
-    { "resources": ["widget.css", "sprite.svg", "fonts/*"], "matches": ["https://drive.google.com/*"] }
-  ]
+    {
+      "resources": [
+        "widget.css",
+        "sprite.svg",
+        "fonts/*"
+      ],
+      "matches": [
+        "https://drive.google.com/*"
+      ]
+    }
+  ],
+  "minimum_chrome_version": "116",
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  }
 }

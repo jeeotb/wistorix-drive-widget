@@ -1,4 +1,4 @@
-# Wistorix Drive Widget (Chrome Extension, bản 1.3)
+# Wistorix Drive Widget (Chrome Extension, bản 1.4)
 
 Bong bóng Wistorix và drawer bên phải chạy thẳng trên **drive.google.com**.
 Giao diện lấy từ bản demo 1.2 (wistorix-widget-demo12.vercel.app).
@@ -11,10 +11,24 @@ ID extension cố định: `kdcfklgimlbbkepipbkhbjlkgjiknckl`. Khoá nằm ở `
 
 Sau mỗi lần sửa code: bấm ↻ ở thẻ extension, rồi tải lại tab Drive.
 
+## Có gì mới ở 1.4
+- Panel mở bằng **Side Panel gốc của Chrome**, đứng cạnh trang Drive nên không che nội dung. Bấm bong bóng hoặc icon extension trên thanh Chrome để mở.
+- Bong bóng vẫn nằm trên Drive: kéo thả được, có badge, thả tệp vào thì hiện menu nhanh.
+- Thêm mục **Hoạt động & số liệu** cho cả tệp và thư mục:
+  - Số hoạt động 30 ngày, số người tương tác, số người có quyền, số lần chỉnh sửa, bình luận (còn mở), link công khai
+  - Biểu đồ theo loại hoạt động: sửa, bình luận, chia sẻ, di chuyển/đổi tên, tạo mới
+  - Nhật ký 90 ngày: ai làm gì, lúc nào, gồm cả thay đổi quyền (+ thêm, − thu hồi)
+  - Thư mục: gom hoạt động của mọi tệp bên trong, kèm danh sách tệp hoạt động nhiều nhất
+  - Lần cuối BẠN xem tệp
+- **Giới hạn của Google:** số lượt xem và danh sách người xem của người khác KHÔNG có trong API với tài khoản Gmail thường.
+  Chỉ Google Workspace mới có (Activity dashboard trong giao diện Drive, và Admin Reports API cho quản trị viên).
+  Muốn đo lượt xem hoặc reach, cần chia sẻ qua **link theo dõi của Wistorix** (link rút gọn/vanity, đếm lượt bấm). Việc này cần backend, xem roadmap.
+- Scope mới `drive.activity.readonly`. Ai đã kết nối ở bản 1.3 thì bấm **Kết nối** lại một lần để cấp thêm quyền.
+
 ## Dành cho người test (gửi phần này kèm link)
 1. Tải về: trên trang GitHub của repo bấm **Code → Download ZIP**, rồi giải nén (hoặc dùng file `wistorix-drive-widget-1.3.zip` được gửi kèm)
 2. Chrome: vào `chrome://extensions`, bật **Developer mode**, bấm **Load unpacked** và chọn thư mục vừa giải nén (thư mục chứa `manifest.json`)
-3. Mở https://drive.google.com. Bong bóng Wistorix hiện ở góc phải dưới.
+3. Mở https://drive.google.com. Bong bóng Wistorix hiện ở góc phải dưới. Bấm vào bong bóng để mở panel bên cạnh trang (cần Chrome 116 trở lên).
 4. Mặc định widget chạy **dữ liệu mẫu**, không đổi gì trên Drive của bạn.
 5. Muốn test với Drive thật: trong panel bấm **Kết nối**. Google sẽ báo "ứng dụng chưa được xác minh", bấm **Tiếp tục**.
    Email Google của bạn phải được thêm vào danh sách test user trước, nếu chưa thì Google báo lỗi 403 access_denied.
@@ -58,6 +72,8 @@ Lưu ý: `chrome.identity` đăng nhập bằng **tài khoản đang đăng nh�
 
 ## File
 - `manifest.json`: MV3. Quyền gồm `storage` và `identity`, scope `drive`, chạy trên drive.google.com
-- `content.js`: đọc DOM Drive, dữ liệu mẫu, render panel, gọi API qua background
-- `background.js`: OAuth (`chrome.identity`) và toàn bộ lệnh gọi Drive API v3
+- `content.js`: bong bóng trên Drive, đọc DOM Drive, gửi snapshot cho side panel
+- `sidepanel.html` + `sidepanel.js`: panel chi tiết (Side Panel Chrome), dữ liệu mẫu và Drive thật
+- `shared.js`: tiện ích dùng chung, dữ liệu mẫu
+- `background.js`: mở side panel, OAuth (`chrome.identity`), gọi Drive API v3 và Drive Activity API v2
 - `widget.css`, `sprite.svg`, `fonts/`, `icons/`

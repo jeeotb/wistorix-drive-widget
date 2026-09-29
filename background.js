@@ -1,6 +1,6 @@
 /* ================================================================
    WISTORIX · DRIVE WIDGET: service worker
-   - Bấm icon extension: mở/đóng panel trên tab Drive
+   - Mở Side Panel (bấm icon extension hoặc bấm bong bóng trên Drive)
    - Gọi Google Drive API v3 thay cho content script (chrome.identity chỉ dùng được ở đây)
    ================================================================ */
 
@@ -8,10 +8,10 @@ const API = 'https://www.googleapis.com/drive/v3';
 const ROLE_VI = { owner: 'Chủ sở hữu', organizer: 'Người quản lý', fileOrganizer: 'Người quản lý nội dung', writer: 'Người chỉnh sửa', commenter: 'Người bình luận', reader: 'Người xem' };
 const FILE_FIELDS = 'id,name,mimeType,size,quotaBytesUsed,createdTime,modifiedTime,owners(emailAddress,displayName,me),ownedByMe,parents,starred,trashed,shared,md5Checksum,webViewLink,driveId,capabilities(canRename,canTrash,canShare,canMoveItemWithinDrive,canDownload)';
 
-chrome.action.onClicked.addListener(async (tab) => {
-  try { await chrome.tabs.sendMessage(tab.id, { type: 'wx-toggle' }); }
-  catch (e) { chrome.tabs.create({ url: 'https://drive.google.com/drive/my-drive' }); }
-});
+/* Bấm icon extension trên thanh Chrome: mở Side Panel Wistorix cạnh trang */
+function initSidePanel() { chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(() => {}); }
+chrome.runtime.onInstalled.addListener(initSidePanel);
+chrome.runtime.onStartup.addListener(initSidePanel);
 
 /* ───────── OAuth ───────── */
 function clientIdReady() {
@@ -139,6 +139,141 @@ async function scanFolder(folderId) {
   return { folderId, total: files.length, issues, freeBytes, at: Date.now() };
 }
 
+/* ================================================================
+   HOẠT ĐỘNG & SỐ LIỆU
+   - Drive Activity API v2: sửa, bình luận, chia sẻ/thu hồi quyền, di chuyển, đổi tên, tạo, xoá, khôi phục
+     (thư mục: lấy hoạt động của mọi tệp bên trong, qua ancestorName)
+   - Drive API: revisions (lịch sử chỉnh sửa, ai sửa), comments (bình luận, người tương tác), permissions,
+     viewedByMeTime (lần cuối BẠN xem)
+   LƯU Ý: Google KHÔNG trả số lượt xem của người khác qua API cho tài khoản Gmail thường.
+   Chỉ Google Workspace mới có "Activity dashboard" (xem trong giao diện Drive) và Admin Reports API.
+   ================================================================ */
+async function authFetch(url, { method = 'GET', body } = {}, retried = false) {
+  let token;
+  try { token = await getToken(false); } catch (e) { throw new ApiError(e.message, 401, 'AUTH'); }
+  const res = await fetch(url, { method, headers: { Authorization: `Bearer ${token}`, ...(body ? { 'Content-Type': 'application/json' } : {}) }, body: body ? JSON.stringify(body) : undefined });
+  if (res.status === 401 && !retried) { await dropToken(token); return authFetch(url, { method, body }, true); }
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const m = (data.error && data.error.message) || res.statusText;
+    const reason = (data.error && data.error.status) || '';
+    throw new ApiError(m, res.status, res.status === 403 && /insufficient|scope/i.test(m) ? 'SCOPE' : reason);
+  }
+  return data;
+}
+
+const ACT_VI = {
+  create: 'Tạo mới', edit: 'Chỉnh sửa', move: 'Di chuyển', rename: 'Đổi tên', delete: 'Xoá', restore: 'Khôi phục',
+  permissionChange: 'Thay đổi quyền', comment: 'Bình luận', dlpChange: 'Chính sách DLP', reference: 'Liên kết', settingsChange: 'Đổi cài đặt', appliedLabelChange: 'Gắn nhãn',
+};
+const actType = (d) => Object.keys(d || {})[0] || 'other';
+
+async function activityOf({ id, isFolder, days = 90 }) {
+  const since = new Date(Date.now() - days * 864e5).toISOString();
+  const [me, perm, file, revs, comments] = await Promise.all([
+    gfetch('/about', { query: { fields: 'user(emailAddress,displayName,permissionId)' } }).then((a) => a.user).catch(() => null),
+    listPerms(id),
+    gfetch(`/files/${id}`, { query: { fields: 'id,name,mimeType,createdTime,modifiedTime,viewedByMeTime,sharedWithMeTime,shared,ownedByMe,sharingUser(displayName,emailAddress),lastModifyingUser(displayName,emailAddress)' } }),
+    isFolder ? Promise.resolve([]) : gfetch(`/files/${id}/revisions`, { query: { pageSize: '200', fields: 'revisions(id,modifiedTime,lastModifyingUser(displayName,emailAddress,permissionId,me))' } }).then((r) => r.revisions || []).catch(() => []),
+    isFolder ? Promise.resolve([]) : gfetch(`/files/${id}/comments`, { query: { pageSize: '100', includeDeleted: 'false', fields: 'comments(id,createdTime,resolved,author(displayName,emailAddress,me),replies(author(displayName,me)))' } }).then((r) => r.comments || []).catch(() => []),
+  ]);
+
+  // Drive Activity API: tối đa 3 trang x 100 sự kiện
+  let activities = [], activityError = null, pageToken;
+  try {
+    for (let i = 0; i < 3; i++) {
+      const body = { [isFolder ? 'ancestorName' : 'itemName']: `items/${id}`, pageSize: 100, filter: `time >= "${since}"`, ...(pageToken ? { pageToken } : {}) };
+      const r = await authFetch('https://driveactivity.googleapis.com/v2/activity:query', { method: 'POST', body });
+      activities.push(...(r.activities || []));
+      pageToken = r.nextPageToken; if (!pageToken) break;
+    }
+  } catch (e) { activityError = { message: e.message, code: e.code || '' }; }
+
+  // people/<id> -> tên. permission.id của người dùng trùng với id người (Gaia ID)
+  const people = {};
+  if (me && me.permissionId) people[me.permissionId] = { name: 'Bạn', email: me.emailAddress, me: true };
+  perm.perms.forEach((p) => { if (p.type === 'user' || p.type === 'group') people[p.id] = people[p.id] || { name: p.displayName || p.emailAddress, email: p.emailAddress }; });
+  revs.forEach((r) => { const u = r.lastModifyingUser; if (u && u.permissionId) people[u.permissionId] = people[u.permissionId] || { name: u.me ? 'Bạn' : (u.displayName || u.emailAddress), email: u.emailAddress, me: u.me }; });
+  const who = (u) => {
+    if (!u) return 'Không rõ';
+    if (u.knownUser) {
+      if (u.knownUser.isCurrentUser) return 'Bạn';
+      const pid = String(u.knownUser.personName || '').replace('people/', '');
+      return (people[pid] && people[pid].name) || 'Người dùng khác';
+    }
+    if (u.deletedUser) return 'Tài khoản đã xoá';
+    if (u.unknownUser) return 'Người dùng ẩn danh';
+    return 'Không rõ';
+  };
+  const actorOf = (a) => {
+    const x = (a.actors || [])[0] || {};
+    if (x.user) return who(x.user);
+    if (x.anonymous) return 'Người ẩn danh (qua link công khai)';
+    if (x.administrator) return 'Quản trị viên';
+    if (x.system) return 'Hệ thống';
+    if (x.impersonation) return who(x.impersonation.impersonatedUser);
+    return 'Không rõ';
+  };
+  const permTarget = (p) => (p.user ? who(p.user) : p.group ? (p.group.email || p.group.title) : p.domain ? 'Mọi người trong ' + p.domain.name : p.anyone ? 'Bất kỳ ai có link' : '?');
+  const roleVi = (r) => ({ OWNER: 'chủ sở hữu', ORGANIZER: 'quản lý', FILE_ORGANIZER: 'quản lý nội dung', EDITOR: 'chỉnh sửa', COMMENTER: 'bình luận', VIEWER: 'xem', PUBLISHED_VIEWER: 'xem bản công bố' }[r] || String(r || '').toLowerCase());
+
+  const events = activities.map((a) => {
+    const d = a.primaryActionDetail || {};
+    const type = actType(d);
+    const t = (a.targets || [])[0] || {};
+    const item = t.driveItem || {};
+    let detail = '';
+    if (type === 'permissionChange') {
+      const add = (d.permissionChange.addedPermissions || []).map((p) => `+ ${permTarget(p)} (${roleVi(p.role)})`);
+      const rm = (d.permissionChange.removedPermissions || []).map((p) => `− ${permTarget(p)}`);
+      detail = add.concat(rm).join(', ');
+    } else if (type === 'rename') detail = `${d.rename.oldTitle || ''} → ${d.rename.newTitle || ''}`;
+    else if (type === 'comment') detail = d.comment.post ? 'Bình luận' : d.comment.assignment ? 'Giao việc' : d.comment.suggestion ? 'Đề xuất' : 'Bình luận';
+    else if (type === 'create') detail = d.create.upload ? 'Tải lên' : d.create.copy ? 'Tạo bản sao' : 'Tạo mới';
+    else if (type === 'move') detail = 'Đổi thư mục';
+    return {
+      time: a.timestamp || (a.timeRange && a.timeRange.endTime) || '',
+      type, label: ACT_VI[type] || type, actor: actorOf(a), detail,
+      target: item.title || '', targetId: String(item.name || '').replace('items/', ''), mime: item.mimeType || '',
+    };
+  }).sort((x, y) => (y.time > x.time ? 1 : -1));
+
+  // số liệu
+  const d30 = Date.now() - 30 * 864e5;
+  const recent = events.filter((e) => new Date(e.time).getTime() >= d30);
+  const count = (arr, type) => arr.filter((e) => e.type === type).length;
+  const actorSet = new Set(events.map((e) => e.actor).filter((x) => x && x !== 'Bạn'));
+  const topFiles = {};
+  if (isFolder) events.forEach((e) => { if (e.targetId && e.targetId !== id) { const k = e.targetId; topFiles[k] = topFiles[k] || { id: k, title: e.target, n: 0 }; topFiles[k].n++; } });
+  const commenters = new Set();
+  comments.forEach((c) => { if (c.author && !c.author.me) commenters.add(c.author.displayName); (c.replies || []).forEach((r) => { if (r.author && !r.author.me) commenters.add(r.author.displayName); }); });
+  const editors = new Set(revs.map((r) => r.lastModifyingUser && (r.lastModifyingUser.me ? 'Bạn' : r.lastModifyingUser.displayName)).filter(Boolean));
+  const accessPeople = perm.perms.filter((p) => p.type === 'user' || p.type === 'group');
+
+  return {
+    days, since, activityError,
+    events: events.slice(0, 60),
+    stats: {
+      total: events.length,
+      last30: { all: recent.length, edit: count(recent, 'edit'), comment: count(recent, 'comment'), share: count(recent, 'permissionChange'), move: count(recent, 'move') + count(recent, 'rename'), create: count(recent, 'create') },
+      byType: Object.fromEntries(Object.keys(ACT_VI).map((k) => [k, count(events, k)]).filter(([, n]) => n)),
+      uniqueActors: actorSet.size,
+      anonymousActs: events.filter((e) => /ẩn danh/.test(e.actor)).length,
+      lastActivity: events[0] ? events[0].time : null,
+      revisions: revs.length, editors: [...editors],
+      comments: comments.length, openComments: comments.filter((c) => !c.resolved).length, commenters: [...commenters],
+      peopleWithAccess: accessPeople.length, canSeePerms: perm.canSee,
+      isPublic: perm.perms.some(isPublicPerm),
+      viewedByMeTime: file.viewedByMeTime || null, sharedWithMeTime: file.sharedWithMeTime || null,
+      sharingUser: file.sharingUser || null, createdTime: file.createdTime, modifiedTime: file.modifiedTime,
+      topFiles: Object.values(topFiles).sort((a, b) => b.n - a.n).slice(0, 5),
+    },
+  };
+}
+
+const scanCache = new Map(); // folderId -> {at, data}: bong bóng và side panel dùng chung
+const MUTATING = new Set(['revokePerm', 'revokePublic', 'setExpiry', 'rename', 'star', 'trash', 'move']);
+
 /* ───────── Các thao tác ───────── */
 const OPS = {
   async status() {
@@ -160,7 +295,7 @@ const OPS = {
     return { ok: true };
   },
   async about() {
-    const a = await gfetch('/about', { query: { fields: 'user(emailAddress,displayName),storageQuota(limit,usage,usageInDrive,usageInDriveTrash)' } });
+    const a = await gfetch('/about', { query: { fields: 'user(emailAddress,displayName,permissionId),storageQuota(limit,usage,usageInDrive,usageInDriveTrash)' } });
     return a;
   },
   async details({ id }) {
@@ -176,7 +311,14 @@ const OPS = {
       perms: perm.perms.map((p) => ({ ...p, roleVi: ROLE_VI[p.role] || p.role })),
     };
   },
-  scanFolder: ({ folderId }) => scanFolder(folderId),
+  async scanFolder({ folderId, force }) {
+    const c = scanCache.get(folderId);
+    if (!force && c && Date.now() - c.at < 60e3) return c.data;
+    const data = await scanFolder(folderId);
+    scanCache.set(folderId, { at: Date.now(), data });
+    return data;
+  },
+  activity: (args) => activityOf(args),
   async revokePerm({ id, permId }) { await gfetch(`/files/${id}/permissions/${permId}`, { method: 'DELETE' }); return { ok: true }; },
   async revokePublic({ ids }) {
     let n = 0;
@@ -216,7 +358,13 @@ const OPS = {
 };
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+  if (msg && msg.type === 'wx-open-panel' && sender.tab) {
+    // gọi ngay (đồng bộ) để còn giữ thao tác bấm của người dùng
+    chrome.sidePanel.open({ windowId: sender.tab.windowId }).catch((e) => console.warn('[Wistorix] không mở được side panel', e));
+    return false;
+  }
   if (!msg || msg.type !== 'wx-api') return false;
+  if (MUTATING.has(msg.op)) scanCache.clear();
   const fn = OPS[msg.op];
   if (!fn) { sendResponse({ ok: false, error: 'Thao tác không hợp lệ: ' + msg.op }); return false; }
   Promise.resolve(fn(msg.args || {}))

@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wistorix</title>
+<style>
+  @font-face{font-family:'WX Manrope';src:url('fonts/Manrope-Variable.woff2') format('woff2');font-weight:200 800;font-style:normal;font-display:swap}
+  html,body{margin:0;height:100%;background:#F4F6FB}
+  body{font-family:'WX Manrope','Manrope',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+  /* trong side panel: panel chiếm trọn chiều cao, không trượt, không bo góc */
+  #wxPanel{position:static !important;transform:none !important;width:100% !important;height:100vh;top:auto;right:auto;bottom:auto;
+    border:0 !important;border-radius:0 !important;box-shadow:none !important}
+  #wxToast{left:12px !important;right:12px;bottom:84px !important;max-width:none !important}
+</style>
+</head>
+<body>
+  <aside id="wxPanel" class="open" aria-label="Wistorix">
+    <div class="wx-head">
+      <div class="mini" data-logo></div>
+      <div class="t"><b>Wistorix<span class="wx-pill" id="wxPill"></span></b><span id="wxAcct">—</span></div>
+      <button class="wx-x" data-act="close" aria-label="Đóng" data-ic="x"></button>
+    </div>
+    <div class="wx-body" id="wxBody"></div>
+    <div class="wx-foot"><div class="wx-footnote" id="wxFootNote"></div><button class="wx-dash" data-act="dashboard"><span data-ic="grid"></span> Mở dashboard Wistorix đầy đủ</button></div>
+  </aside>
+  <div id="wxToast"></div>
+  <script src="shared.js"></script>
+  <script src="sidepanel.js"></script>
+</body>
+</html>
