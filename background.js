@@ -118,7 +118,7 @@ async function scanFolder(folderId) {
       query: {
         q: `'${qEsc(folderId)}' in parents and trashed = false`,
         pageSize: '200', ...(pageToken ? { pageToken } : {}),
-        fields: 'nextPageToken,files(id,name,mimeType,size,md5Checksum,shared,ownedByMe,permissions(type,role))',
+        fields: 'nextPageToken,files(id,name,mimeType,size,md5Checksum,shared,ownedByMe,permissions(type,role,emailAddress,domain))',
         includeItemsFromAllDrives: 'true', corpora: 'allDrives',
       },
     });
@@ -127,16 +127,20 @@ async function scanFolder(folderId) {
   }
   const byMd5 = {};
   files.forEach((f) => { if (f.md5Checksum) (byMd5[f.md5Checksum] = byMd5[f.md5Checksum] || []).push(f); });
-  const issues = {};
+  const issues = {}, shared = {}, people = new Set();
   let freeBytes = 0;
   files.forEach((f) => {
     const pub = (f.permissions || []).some(isPublicPerm);
     const group = f.md5Checksum ? byMd5[f.md5Checksum] : null;
     const dup = group && group.length > 1 ? group.length : 0;
     if (pub || dup) issues[f.id] = { pub, dup, name: f.name, size: f.size ? +f.size : 0, shared: f.shared };
+    const who = (f.permissions || []).filter((p) => (p.type === 'user' || p.type === 'group') && p.role !== 'owner' && p.emailAddress);
+    who.forEach((p) => people.add(p.emailAddress.toLowerCase()));
+    if (who.length) shared[f.id] = { name: f.name, emails: who.length, isFolder: f.mimeType === 'application/vnd.google-apps.folder' };
   });
   Object.values(byMd5).forEach((g) => { if (g.length > 1) freeBytes += (g.length - 1) * (+g[0].size || 0); });
-  return { folderId, total: files.length, issues, freeBytes, at: Date.now() };
+  const dupGroups = Object.values(byMd5).filter((g) => g.length > 1).length;
+  return { folderId, total: files.length, issues, shared, people: [...people], dupGroups, freeBytes, at: Date.now() };
 }
 
 /* ================================================================
@@ -182,7 +186,7 @@ async function activityOf({ id, isFolder, days = 90 }) {
   let activities = [], activityError = null, pageToken;
   try {
     for (let i = 0; i < 3; i++) {
-      const body = { [isFolder ? 'ancestorName' : 'itemName']: `items/${id}`, pageSize: 100, filter: `time >= "${since}"`, ...(pageToken ? { pageToken } : {}) };
+      const body = { [isFolder ? 'ancestorName' : 'itemName']: `items/${file.id || id}`, pageSize: 100, filter: `time >= "${since}"`, ...(pageToken ? { pageToken } : {}) };
       const r = await authFetch('https://driveactivity.googleapis.com/v2/activity:query', { method: 'POST', body });
       activities.push(...(r.activities || []));
       pageToken = r.nextPageToken; if (!pageToken) break;
@@ -244,7 +248,7 @@ async function activityOf({ id, isFolder, days = 90 }) {
   const count = (arr, type) => arr.filter((e) => e.type === type).length;
   const actorSet = new Set(events.map((e) => e.actor).filter((x) => x && x !== 'Bạn'));
   const topFiles = {};
-  if (isFolder) events.forEach((e) => { if (e.targetId && e.targetId !== id) { const k = e.targetId; topFiles[k] = topFiles[k] || { id: k, title: e.target, n: 0 }; topFiles[k].n++; } });
+  if (isFolder) events.forEach((e) => { if (e.targetId && e.targetId !== id && e.targetId !== file.id) { const k = e.targetId; topFiles[k] = topFiles[k] || { id: k, title: e.target, n: 0 }; topFiles[k].n++; } });
   const commenters = new Set();
   comments.forEach((c) => { if (c.author && !c.author.me) commenters.add(c.author.displayName); (c.replies || []).forEach((r) => { if (r.author && !r.author.me) commenters.add(r.author.displayName); }); });
   const editors = new Set(revs.map((r) => r.lastModifyingUser && (r.lastModifyingUser.me ? 'Bạn' : r.lastModifyingUser.displayName)).filter(Boolean));

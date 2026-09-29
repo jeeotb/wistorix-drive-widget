@@ -1,4 +1,4 @@
-# Wistorix Drive Widget (Chrome Extension, bản 1.4)
+# Wistorix Drive Widget (Chrome Extension, bản 1.5)
 
 Bong bóng Wistorix và drawer bên phải chạy thẳng trên **drive.google.com**.
 Giao diện lấy từ bản demo 1.2 (wistorix-widget-demo12.vercel.app).
@@ -10,6 +10,15 @@ ID extension cố định: `kdcfklgimlbbkepipbkhbjlkgjiknckl`. Khoá nằm ở `
 3. Tải lại tab Google Drive. Bong bóng hiện ở góc phải dưới.
 
 Sau mỗi lần sửa code: bấm ↻ ở thẻ extension, rồi tải lại tab Drive.
+
+## Có gì mới ở 1.5
+- Side panel làm lại giao diện, gộp thành **3 tab**:
+  - **Tệp**: tệp đang chọn, 6 thao tác nhanh (copy link, đổi tên, chuyển, gắn sao, tải về, xóa), ai có quyền truy cập (thu hồi, đặt thời hạn), bản trùng, hoạt động gần đây. Chưa chọn tệp thì hiện danh sách mục trong thư mục đang xem.
+  - **Bảo mật**: điểm an toàn 0 đến 100 của thư mục đang xem, 3 thẻ rủi ro (tệp công khai, người được chia sẻ, bản trùng), danh sách "Việc nên làm ngay" có nút xử lý, tệp đang chia sẻ, lịch sử thay đổi quyền 90 ngày, dung lượng. Badge đỏ trên tab = số tệp công khai + số nhóm trùng.
+  - **Hiệu quả**: số liệu hoạt động từ Google Drive (tệp hoặc cả thư mục) và phần **Link theo dõi**. Link theo dõi đang là bản xem trước với số liệu mẫu, cần backend Wistorix mới chạy thật.
+- Tab đang mở được nhớ lại. Menu nhanh của bong bóng mở thẳng đúng tab.
+- Quét thư mục (Drive thật) lấy thêm danh sách người được chia sẻ và số nhóm trùng. Hoạt động của "Drive của tôi" nay lấy được (đổi `root` sang ID thật).
+- Giao diện side panel nằm ở `sidepanel.css`, không dùng `widget.css` nữa (bong bóng trên Drive vẫn dùng `widget.css`).
 
 ## Có gì mới ở 1.4
 - Panel mở bằng **Side Panel gốc của Chrome**, đứng cạnh trang Drive nên không che nội dung. Bấm bong bóng hoặc icon extension trên thanh Chrome để mở.
@@ -73,7 +82,7 @@ Lưu ý: `chrome.identity` đăng nhập bằng **tài khoản đang đăng nh�
 ## File
 - `manifest.json`: MV3. Quyền gồm `storage` và `identity`, scope `drive`, chạy trên drive.google.com
 - `content.js`: bong bóng trên Drive, đọc DOM Drive, gửi snapshot cho side panel
-- `sidepanel.html` + `sidepanel.js`: panel chi tiết (Side Panel Chrome), dữ liệu mẫu và Drive thật
+- `sidepanel.html` + `sidepanel.js` + `sidepanel.css`: side panel 3 tab (Tệp, Bảo mật, Hiệu quả), dữ liệu mẫu và Drive thật
 - `shared.js`: tiện ích dùng chung, dữ liệu mẫu
 - `background.js`: mở side panel, OAuth (`chrome.identity`), gọi Drive API v3 và Drive Activity API v2
 - `widget.css`, `sprite.svg`, `fonts/`, `icons/`

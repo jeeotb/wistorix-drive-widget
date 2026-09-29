@@ -4,29 +4,23 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Wistorix</title>
-<style>
-  @font-face{font-family:'WX Manrope';src:url('fonts/Manrope-Variable.woff2') format('woff2');font-weight:200 800;font-style:normal;font-display:swap}
-  html,body{margin:0;height:100%;background:#F4F6FB}
-  body{font-family:'WX Manrope','Manrope',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
-  /* trong side panel: panel chiếm trọn chiều cao, không trượt, không bo góc */
-  #wxPanel{position:static !important;transform:none !important;width:100% !important;height:100vh;top:auto;right:auto;bottom:auto;
-    border:0 !important;border-radius:0 !important;box-shadow:none !important}
-  #wxPanel{display:flex;flex-direction:column;overflow:hidden}
-  #wxPanel .wx-body{flex:1 1 auto;min-height:0;overflow-y:auto}
-  #wxToast{left:12px !important;right:12px;bottom:84px !important;max-width:none !important}
-</style>
+<link rel="stylesheet" href="sidepanel.css">
 </head>
 <body>
-  <aside id="wxPanel" class="open" aria-label="Wistorix">
-    <div class="wx-head">
-      <div class="mini" data-logo></div>
-      <div class="t"><b>Wistorix<span class="wx-pill" id="wxPill"></span></b><span id="wxAcct">—</span></div>
-      <button class="wx-x" data-act="close" aria-label="Đóng" data-ic="x"></button>
-    </div>
-    <div class="wx-body" id="wxBody"></div>
-    <div class="wx-foot"><div class="wx-footnote" id="wxFootNote"></div><button class="wx-dash" data-act="dashboard"><span data-ic="grid"></span> Mở dashboard Wistorix đầy đủ</button></div>
-  </aside>
-  <div id="wxToast"></div>
+  <header class="sp-head">
+    <div data-logo></div>
+    <div class="sp-brand"><b>Wistorix</b><span id="wxAcct">—</span></div>
+    <div class="sp-status" id="wxStatus"><i></i><span>Dữ liệu mẫu</span></div>
+    <button class="sp-x" data-act="close" aria-label="Đóng" data-ic="x"></button>
+  </header>
+  <nav class="sp-tabs" role="tablist" aria-label="Chức năng" id="wxTabs">
+    <button class="sp-tab" role="tab" data-act="tab" data-tab="tep" aria-selected="true"><span data-ic="file"></span>Tệp</button>
+    <button class="sp-tab" role="tab" data-act="tab" data-tab="baomat" aria-selected="false"><span data-ic="shield"></span>Bảo mật<span class="sp-badge" id="wxBadge" hidden></span></button>
+    <button class="sp-tab" role="tab" data-act="tab" data-tab="hieuqua" aria-selected="false"><span data-ic="chart"></span>Hiệu quả</button>
+  </nav>
+  <main class="sp-body" id="wxBody" role="tabpanel"></main>
+  <footer class="sp-foot"><div class="grow" id="wxFootNote"></div><button data-act="dashboard"><span data-ic="external"></span> Dashboard</button></footer>
+  <div id="wxToast" role="status"></div>
   <script src="shared.js"></script>
   <script src="sidepanel.js"></script>
 </body>
