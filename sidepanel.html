@@ -11,6 +11,8 @@
   /* trong side panel: panel chiếm trọn chiều cao, không trượt, không bo góc */
   #wxPanel{position:static !important;transform:none !important;width:100% !important;height:100vh;top:auto;right:auto;bottom:auto;
     border:0 !important;border-radius:0 !important;box-shadow:none !important}
+  #wxPanel{display:flex;flex-direction:column;overflow:hidden}
+  #wxPanel .wx-body{flex:1 1 auto;min-height:0;overflow-y:auto}
   #wxToast{left:12px !important;right:12px;bottom:84px !important;max-width:none !important}
 </style>
 </head>
