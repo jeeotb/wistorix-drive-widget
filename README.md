@@ -11,6 +11,9 @@ ID extension cố định: `kdcfklgimlbbkepipbkhbjlkgjiknckl`. Khoá nằm ở `
 
 Sau mỗi lần sửa code: bấm ↻ ở thẻ extension, rồi tải lại tab Drive.
 
+## Có gì mới ở 1.5.1
+- Tab Bảo mật: danh sách "Tệp đang chia sẻ hoặc cần chú ý" chỉ hiện 5 mục rủi ro nhất ở bản miễn phí. Còn lại hiện thẻ khoá "Còn N mục nữa" kèm nút mở Wistorix Pro để xem tổng quan. Đổi số mục, tên gói và link ở `CFG` đầu `sidepanel.js` (`freeListLimit`, `proName`, `proUrl`).
+
 ## Có gì mới ở 1.5
 - Side panel làm lại giao diện, gộp thành **3 tab**:
   - **Tệp**: tệp đang chọn, 6 thao tác nhanh (copy link, đổi tên, chuyển, gắn sao, tải về, xóa), ai có quyền truy cập (thu hồi, đặt thời hạn), bản trùng, hoạt động gần đây. Chưa chọn tệp thì hiện danh sách mục trong thư mục đang xem.

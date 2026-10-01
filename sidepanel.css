@@ -175,6 +175,19 @@ b{font-weight:800}
 .sp-rm b{display:block;font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sp-rm span{display:block;font-size:12px;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sp-go{color:var(--mut2);font-size:14px}
+/* hàng bị khoá (bản miễn phí) + thẻ mời nâng cấp */
+.sp-ghost{pointer-events:none;opacity:.55}
+.sp-ghost .sp-ri{background:var(--line2)}
+.sp-ghost .sp-rm i{display:block;height:9px;border-radius:5px;background:var(--line2);margin:4px 0}
+.sp-card.has-more{border-radius:var(--r) var(--r) 0 0;border-bottom:0}
+.sp-upsell{position:relative;padding:14px;border-radius:0 0 var(--r) var(--r);border:1px solid var(--pri-bd);border-top:0;
+  background:linear-gradient(180deg,#fff 0,var(--pri-bg) 100%)}
+.sp-card.has-more+.sp-upsell{border-top:1px dashed var(--pri-bd)}
+.sp-upsell .h{display:flex;align-items:center;gap:8px;font-size:14px}
+.sp-upsell .h .ic{color:var(--pri);font-size:16px}
+.sp-upsell p{margin:6px 0 12px;font-size:12.5px;color:var(--mut);line-height:1.5}
+.sp-upsell p b{color:var(--ink)}
+.sp-tag.pro{background:var(--navy);color:#fff}
 
 /* trùng lặp */
 .sp-dup{display:flex;gap:10px;align-items:center;padding:10px 12px;border-bottom:1px solid var(--line2);font-size:12px}

@@ -13,6 +13,10 @@
   const CFG = {
     dashboardUrl: 'https://ws-extension-demo.vercel.app/',
     linkDomain: 'wistorix.link',
+    // bản miễn phí chỉ hiện N mục đầu của danh sách "Tệp đang chia sẻ"; xem hết thì mở bản trả phí
+    freeListLimit: 5,
+    proName: 'Wistorix Pro',
+    proUrl: 'https://ws-extension-demo.vercel.app/',
   };
   const TABS = ['tep', 'baomat', 'hieuqua'];
 
@@ -440,9 +444,16 @@
     const rows = [];
     iss.forEach((x) => { seen.add(x.id); rows.push({ id: x.id, name: x.name, ic: x.pub ? 'globe' : 'copy', cls: x.pub ? 'red' : 'blue', sub: [x.pub ? 'đang công khai' : '', x.emails ? x.emails + ' người có quyền' : '', x.dup ? 'trùng ×' + x.dup : ''].filter(Boolean).join(' · ') }); });
     sd.shared.forEach((x) => { if (!seen.has(x.id)) rows.push({ id: x.id, name: x.name, ic: x.isFolder ? 'folder' : 'users', cls: x.isFolder ? 'fold' : 'amb', sub: x.emails + ' người có quyền' }); });
-    const list = rows.slice(0, 15).map((x) => `<div class="sp-row click" data-act="pick" data-id="${esc(x.id)}" data-name="${esc(x.name)}"><div class="sp-ri ${x.cls}">${IC(x.ic)}</div>
+    const LIM = CFG.freeListLimit, more = Math.max(0, rows.length - LIM);
+    const list = rows.slice(0, LIM).map((x) => `<div class="sp-row click" data-act="pick" data-id="${esc(x.id)}" data-name="${esc(x.name)}"><div class="sp-ri ${x.cls}">${IC(x.ic)}</div>
       <div class="sp-rm"><b>${esc(x.name)}</b><span>${esc(x.sub)}</span></div><span class="sp-go">${IC('chev-r')}</span></div>`).join('');
-    html += sec('shared', 'Tệp đang chia sẻ hoặc cần chú ý', list ? `<div class="sp-card sp-rows">${list}</div>${rows.length > 15 ? `<div class="sp-note">…và ${rows.length - 15} mục khác.</div>` : ''}`
+    const lockedRows = more ? `<div class="sp-row sp-ghost" aria-hidden="true"><div class="sp-ri"></div><div class="sp-rm"><i style="width:62%"></i><i style="width:38%"></i></div></div>
+      <div class="sp-row sp-ghost" aria-hidden="true"><div class="sp-ri"></div><div class="sp-rm"><i style="width:48%"></i><i style="width:30%"></i></div></div>` : '';
+    const upsell = more ? `<div class="sp-upsell">
+        <div class="h">${IC('lock')}<b>Còn ${more} mục nữa</b><span class="sp-tag pro">PRO</span></div>
+        <p>Bản miễn phí hiện ${LIM} mục rủi ro nhất. Mở <b>${esc(CFG.proName)}</b> để xem toàn bộ ${rows.length} mục, lọc theo người được chia sẻ và thu hồi hàng loạt.</p>
+        <button class="sp-btn pri block" data-act="pro">${IC('external')} Xem tổng quan trên ${esc(CFG.proName)}</button></div>` : '';
+    html += sec('shared', 'Tệp đang chia sẻ hoặc cần chú ý', list ? `<div class="sp-card sp-rows ${more ? 'has-more' : ''}">${list}${lockedRows}</div>${upsell}`
       : `<div class="sp-card sp-only">${IC('check-circle')} Không có tệp nào đang chia sẻ ra ngoài.</div>`, rows.length ? rows.length + ' mục' : null, true);
 
     // Lịch sử thay đổi quyền (hoạt động của cả thư mục)
@@ -656,6 +667,7 @@
       case 'tab': setTab(el.dataset.tab); break;
       case 'jump': jump(el.dataset.to); break;
       case 'dashboard': case 'transfer': newTab(CFG.dashboardUrl); break;
+      case 'pro': newTab(CFG.proUrl); break;
       case 'open-drive': newTab('https://drive.google.com/drive/my-drive'); break;
       case 'grp': state.open[el.dataset.id] = !state.open[el.dataset.id]; render(); break;
       case 'overview': state.current = null; state.inline = null; ensureScan(); render(); $('wxBody').scrollTop = 0; break;
