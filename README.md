@@ -11,6 +11,10 @@ ID extension cố định: `kdcfklgimlbbkepipbkhbjlkgjiknckl`. Khoá nằm ở `
 
 Sau mỗi lần sửa code: bấm ↻ ở thẻ extension, rồi tải lại tab Drive.
 
+## Có gì mới ở 1.5.2
+- Tab Hiệu quả diễn giải lại số liệu Drive: thêm 1 câu tóm tắt bằng lời ở đầu, tách hoạt động của **Bạn** và **Người khác** (bảng 2 cột), thêm danh sách người tương tác nhiều nhất.
+- Sửa số liệu dễ hiểu sai: "Người được chia sẻ" không còn tính chủ sở hữu; "Tệp có thay đổi" đếm đủ (trước bị giới hạn 5); với thư mục đang xem, ô cuối hiện số tệp công khai bên trong (khớp tab Bảo mật).
+
 ## Có gì mới ở 1.5.1
 - Tab Bảo mật: danh sách "Tệp đang chia sẻ hoặc cần chú ý" chỉ hiện 5 mục rủi ro nhất ở bản miễn phí. Còn lại hiện thẻ khoá "Còn N mục nữa" kèm nút mở Wistorix Pro để xem tổng quan. Đổi số mục, tên gói và link ở `CFG` đầu `sidepanel.js` (`freeListLimit`, `proName`, `proUrl`).
 

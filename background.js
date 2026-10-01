@@ -191,7 +191,7 @@ async function activityOf({ id, isFolder, days = 90 }) {
       activities.push(...(r.activities || []));
       pageToken = r.nextPageToken; if (!pageToken) break;
     }
-  } catch (e) { activityError = { message: e.message, code: e.code || '' }; }
+  } catch (e) { pageToken = null; activityError = { message: e.message, code: e.code || '' }; }
 
   // people/<id> -> tên. permission.id của người dùng trùng với id người (Gaia ID)
   const people = {};
@@ -253,6 +253,12 @@ async function activityOf({ id, isFolder, days = 90 }) {
   comments.forEach((c) => { if (c.author && !c.author.me) commenters.add(c.author.displayName); (c.replies || []).forEach((r) => { if (r.author && !r.author.me) commenters.add(r.author.displayName); }); });
   const editors = new Set(revs.map((r) => r.lastModifyingUser && (r.lastModifyingUser.me ? 'Bạn' : r.lastModifyingUser.displayName)).filter(Boolean));
   const accessPeople = perm.perms.filter((p) => p.type === 'user' || p.type === 'group');
+  // tách hoạt động của BẠN và của NGƯỜI KHÁC: tab Hiệu quả chỉ có nghĩa khi nhìn phần người khác
+  const isMe = (e) => e.actor === 'Bạn';
+  const split = (arr) => ({ all: arr.length, edit: count(arr, 'edit'), comment: count(arr, 'comment'), share: count(arr, 'permissionChange'), move: count(arr, 'move') + count(arr, 'rename'), create: count(arr, 'create') });
+  const others30 = recent.filter((e) => !isMe(e));
+  const actorCount = {};
+  others30.forEach((e) => { actorCount[e.actor] = (actorCount[e.actor] || 0) + 1; });
 
   return {
     days, since, activityError,
@@ -271,6 +277,12 @@ async function activityOf({ id, isFolder, days = 90 }) {
       viewedByMeTime: file.viewedByMeTime || null, sharedWithMeTime: file.sharedWithMeTime || null,
       sharingUser: file.sharingUser || null, createdTime: file.createdTime, modifiedTime: file.modifiedTime,
       topFiles: Object.values(topFiles).sort((a, b) => b.n - a.n).slice(0, 5),
+      filesTouched: Object.keys(topFiles).length,
+      mine30: split(recent.filter(isMe)), others30: split(others30),
+      othersActors30: Object.keys(actorCount).length,
+      topActors: Object.entries(actorCount).map(([name, n]) => ({ name, n })).sort((a, b) => b.n - a.n).slice(0, 5),
+      sharedWith: accessPeople.filter((p) => p.role !== 'owner').length,
+      truncated: !!pageToken,
     },
   };
 }

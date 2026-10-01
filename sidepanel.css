@@ -289,3 +289,17 @@ b{font-weight:800}
 
 #wxToast{position:fixed;left:12px;right:12px;bottom:64px;background:var(--navy);color:#fff;font-size:12.5px;line-height:1.45;padding:11px 14px;border-radius:10px;box-shadow:0 10px 30px rgba(4,19,53,.25);opacity:0;transform:translateY(8px);pointer-events:none;transition:.2s;z-index:10}
 #wxToast.show{opacity:1;transform:none}
+
+/* diễn giải + bảng Bạn / Người khác (tab Hiệu quả) */
+.sp-insight{display:flex;gap:10px;padding:12px;border-radius:var(--r);background:var(--pri-bg);border:1px solid var(--pri-bd);font-size:12.5px;line-height:1.55}
+.sp-insight>.ic{color:var(--pri);font-size:16px;margin-top:2px}
+.sp-insight span{display:block;margin-top:4px;font-size:11.5px;color:var(--mut)}
+.sp-split{padding:4px 12px}
+.sp-split .hd,.sp-split .r{display:grid;grid-template-columns:1fr 64px 84px;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line2);font-size:12.5px}
+.sp-split .hd{font-size:11px;color:var(--mut);font-weight:700}
+.sp-split .hd b{text-align:right;font-weight:800;color:var(--mut)}
+.sp-split .r b{text-align:right;font-weight:800}
+.sp-split .r b.z{color:var(--mut2);font-weight:600}
+.sp-split .r b.o{color:var(--pri)}
+.sp-split .r.t{border-bottom:0}
+.sp-split .r.t span{font-weight:800}

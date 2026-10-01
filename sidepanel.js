@@ -191,6 +191,9 @@
     const d30 = Date.now() - 30 * 864e5, r = events.filter((e) => new Date(e.time).getTime() >= d30);
     const c = (arr, t) => arr.filter((e) => e.type === t).length;
     const m = demoMeta(item, overrides);
+    const split = (arr) => ({ all: arr.length, edit: c(arr, 'edit'), comment: c(arr, 'comment'), share: c(arr, 'permissionChange'), move: c(arr, 'move') + c(arr, 'rename'), create: c(arr, 'create') });
+    const o30 = r.filter((e) => e.actor !== 'Bạn'), ac = {};
+    o30.forEach((e) => { ac[e.actor] = (ac[e.actor] || 0) + 1; });
     const top = {};
     events.forEach((e) => { if (e.target) { top[e.target] = top[e.target] || { title: e.target, n: 0 }; top[e.target].n++; } });
     return {
@@ -203,6 +206,11 @@
         commenters: item.isFolder ? [] : [people[(h >>> 2) % 6]], peopleWithAccess: m.emails.length, canSeePerms: true, isPublic: m.pub,
         viewedByMeTime: new Date(Date.now() - (h % 72) * 3600e3).toISOString(),
         topFiles: Object.values(top).sort((a, b) => b.n - a.n).slice(0, 5),
+        filesTouched: Object.keys(top).length,
+        mine30: split(r.filter((e) => e.actor === 'Bạn')), others30: split(o30),
+        othersActors30: Object.keys(ac).length,
+        topActors: Object.entries(ac).map(([name, n]) => ({ name, n })).sort((a, b) => b.n - a.n).slice(0, 5),
+        sharedWith: m.emails.length, truncated: false,
       },
     };
   }
@@ -505,32 +513,54 @@
     else if (a.error) body = errBox(a.error, 'act-retry');
     else {
       const st = a.data.stats, l = st.last30;
-      const tile = (n, lb, warn) => `<div class="sp-tile ${warn ? 'warn' : ''}"><b>${n}</b><span>${lb}</span></div>`;
-      body = `<div class="sp-tiles">
-        ${tile(l.all, 'Hoạt động 30 ngày')}
-        ${tile(st.uniqueActors, 'Người tương tác')}
-        ${tile(st.canSeePerms === false ? '—' : st.peopleWithAccess, 'Người có quyền')}
-        ${subj.isFolder ? tile(st.topFiles.length, 'Tệp có hoạt động') : tile(st.revisions, 'Lần chỉnh sửa')}
-        ${subj.isFolder ? tile(l.share, 'Đổi quyền 30 ngày', l.share > 0) : tile(st.comments, 'Bình luận' + (st.openComments ? ` · ${st.openComments} mở` : ''))}
-        ${tile(st.isPublic ? 'Có' : 'Không', 'Link công khai', st.isPublic)}
+      const me = st.mine30 || l, ot = st.others30 || { all: 0, edit: 0, comment: 0, share: 0, move: 0, create: 0 };
+      const isCurFolder = subj.isFolder && subj.id === env.folderId();
+      const sd = isCurFolder ? secData() : null;
+      const pubInside = sd && sd.status === 'ok' ? sd.pub.length : null;
+      const plus = st.truncated ? '+' : '';
+      const what = subj.isFolder ? 'thư mục này' : 'tệp này';
+      // 1 câu diễn giải bằng lời
+      const TYPE_VI = { create: 'tạo mới hoặc tải lên', edit: 'chỉnh sửa', move: 'di chuyển, đổi tên', comment: 'bình luận', share: 'đổi quyền' };
+      const topMine = Object.keys(TYPE_VI).sort((x, y) => (me[y] || 0) - (me[x] || 0))[0];
+      let insight;
+      if (!l.all) insight = `Không có hoạt động nào trên ${what} trong 30 ngày qua.`;
+      else if (!ot.all) insight = `Trong 30 ngày, <b>chưa ai ngoài bạn</b> sửa, bình luận hay đổi quyền ${what}. ${me.all}${plus} hoạt động đều do bạn, chủ yếu là ${TYPE_VI[topMine]} (${me[topMine]}).`;
+      else {
+        const t = st.topActors && st.topActors[0];
+        insight = `Trong 30 ngày, <b>${st.othersActors30} người khác</b> đã tương tác ${ot.all} lần với ${what}${t ? `, nhiều nhất là <b>${esc(t.name)}</b> (${t.n} lần)` : ''}. Bạn có thêm ${me.all}${plus} hoạt động của riêng mình.`;
+      }
+      body = `<div class="sp-insight">${IC('info')}<div>${insight}<span>Lượt xem không có trong số liệu này vì Google không cung cấp cho tài khoản Gmail.</span></div></div>`;
+
+      const tile = (n, lb, warn, sub) => `<div class="sp-tile ${warn ? 'warn' : ''}"><b>${n}</b><span>${lb}</span>${sub ? `<div class="d" style="color:var(--mut)">${sub}</div>` : ''}</div>`;
+      body += `<div class="sp-tiles" style="margin-top:10px">
+        ${tile(st.othersActors30 != null ? st.othersActors30 : st.uniqueActors, 'Người khác tương tác', false, '30 ngày')}
+        ${tile(ot.all, 'Lượt tương tác của người khác', false, '30 ngày')}
+        ${tile(st.canSeePerms === false ? '—' : (st.sharedWith != null ? st.sharedWith : st.peopleWithAccess), 'Người được chia sẻ', false, 'không tính bạn')}
+        ${subj.isFolder ? tile(st.filesTouched != null ? st.filesTouched : st.topFiles.length, 'Tệp có thay đổi', false, '90 ngày') : tile(st.revisions, 'Phiên bản đã lưu')}
+        ${subj.isFolder ? tile(l.share, 'Lần đổi quyền', l.share > 0, '30 ngày') : tile(st.comments, 'Bình luận', false, st.openComments ? st.openComments + ' chưa xử lý' : '')}
+        ${subj.isFolder && pubInside != null ? tile(pubInside, 'Tệp công khai bên trong', pubInside > 0, pubInside ? 'xem tab Bảo mật' : '') : tile(st.isPublic ? 'Có' : 'Không', subj.isFolder ? 'Thư mục công khai' : 'Link công khai', st.isPublic)}
       </div>`;
-      body += `<div class="sp-card" style="padding:12px;margin-top:10px"><div class="sp-bars">${[['Chỉnh sửa', l.edit], ['Bình luận', l.comment], ['Chia sẻ', l.share], ['Di chuyển/đổi tên', l.move], ['Tạo mới', l.create]]
-        .map(([k, n]) => `<div class="sp-barrow"><span>${k}</span><i><em style="width:${l.all ? Math.round((n / l.all) * 100) : 0}%"></em></i><b>${n}</b></div>`).join('')}</div></div>`;
+      const rowsT = [['Tạo mới / tải lên', 'create'], ['Chỉnh sửa', 'edit'], ['Di chuyển / đổi tên', 'move'], ['Bình luận', 'comment'], ['Đổi quyền', 'share']];
+      body += `<div class="sp-card sp-split" style="margin-top:10px"><div class="hd"><span>Hoạt động 30 ngày</span><b>Bạn</b><b>Người khác</b></div>
+        ${rowsT.map(([k, key]) => `<div class="r"><span>${k}</span><b class="${me[key] ? '' : 'z'}">${me[key] || 0}</b><b class="${ot[key] ? 'o' : 'z'}">${ot[key] || 0}</b></div>`).join('')}
+        <div class="r t"><span>Tổng</span><b>${me.all}${plus}</b><b class="${ot.all ? 'o' : 'z'}">${ot.all}</b></div></div>`;
+      if (st.topActors && st.topActors.length) {
+        body += `<h2 class="sp-h2" style="margin-top:14px">Người tương tác nhiều nhất<span class="meta">30 ngày</span></h2><div class="sp-card sp-rows">${st.topActors.map((t) => `<div class="sp-row"><div class="sp-av">${esc((t.name[0] || '?').toUpperCase())}</div><div class="sp-rm"><b>${esc(t.name)}</b></div><b>${t.n}</b></div>`).join('')}</div>`;
+      }
       body += `<div class="sp-card" style="padding:2px 12px;margin-top:10px">
         <div class="sp-kv"><span class="k">Hoạt động gần nhất</span><span class="v">${esc(relTime(st.lastActivity))}</span></div>
         <div class="sp-kv"><span class="k">Lần cuối bạn xem</span><span class="v">${esc(relTime(st.viewedByMeTime))}</span></div>
         ${st.anonymousActs ? `<div class="sp-kv"><span class="k">Thao tác ẩn danh (qua link)</span><span class="v">${st.anonymousActs}</span></div>` : ''}
         ${st.editors && st.editors.length ? `<div class="sp-kv"><span class="k">Người đã sửa</span><span class="v">${esc(st.editors.slice(0, 4).join(', '))}</span></div>` : ''}
-        ${st.commenters && st.commenters.length ? `<div class="sp-kv"><span class="k">Người bình luận</span><span class="v">${esc(st.commenters.slice(0, 4).join(', '))}</span></div>` : ''}
-        <div class="sp-kv"><span class="k">Lượt xem của người khác</span><span class="v sp-muted">Google không cung cấp*</span></div></div>`;
+        ${st.commenters && st.commenters.length ? `<div class="sp-kv"><span class="k">Người bình luận</span><span class="v">${esc(st.commenters.slice(0, 4).join(', '))}</span></div>` : ''}</div>`;
       if (subj.isFolder && st.topFiles.length) {
-        body += `<h2 class="sp-h2" style="margin-top:14px">Tệp hoạt động nhiều nhất</h2><div class="sp-card sp-rows">${st.topFiles.map((t) => `<div class="sp-row"><div class="sp-ri blue">${IC('file')}</div><div class="sp-rm"><b>${esc(t.title)}</b></div><b>${t.n}</b></div>`).join('')}</div>`;
+        body += `<h2 class="sp-h2" style="margin-top:14px">Tệp có nhiều thay đổi nhất<span class="meta">90 ngày</span></h2><div class="sp-card sp-rows">${st.topFiles.map((t) => `<div class="sp-row"><div class="sp-ri blue">${IC('file')}</div><div class="sp-rm"><b>${esc(t.title)}</b></div><b>${t.n}</b></div>`).join('')}</div>`;
       }
       const ev = a.data.events.slice(0, 12);
       body += `<h2 class="sp-h2" style="margin-top:14px">Nhật ký ${a.data.days} ngày<span class="meta">${a.data.events.length} sự kiện</span></h2>`;
       body += ev.length ? `<div class="sp-tl">${ev.map(evRow).join('')}</div>` : `<div class="sp-card sp-only">${IC('check-circle')} Không có hoạt động nào trong ${a.data.days} ngày qua.</div>`;
       if (a.data.activityError) body += `<div class="sp-note">Nhật ký chi tiết chưa lấy được: ${esc(a.data.activityError.message)}${a.data.activityError.code === 'SCOPE' ? ' · <a data-act="connect">Kết nối lại</a> để cấp quyền xem hoạt động.' : ''}</div>`;
-      body += `<div class="sp-note">* Google chỉ ghi lượt xem trên tài khoản Workspace và chỉ với người cùng tổ chức. Muốn đo lượt mở, người xem và nguồn truy cập, hãy chia sẻ qua link theo dõi bên dưới.</div>`;
+      body += `<div class="sp-note">Google chỉ ghi lượt xem trên tài khoản Workspace và chỉ với người cùng tổ chức. Muốn đo lượt mở, người xem và nguồn truy cập, hãy chia sẻ qua link theo dõi bên dưới.</div>`;
     }
     html += sec('drivestats', `Số liệu từ Google Drive ${tag()}`, body);
 
