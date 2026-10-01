@@ -282,3 +282,21 @@ b{font-weight:800}
 .sp-split .r b.o{color:var(--pri)}
 .sp-split .r.t{border-bottom:0}
 .sp-split .r.t span{font-weight:800}
+
+/* biểu đồ hoạt động theo thời gian */
+.sp-chartc{padding:12px}
+.sp-charth{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:8px}
+.sp-charth b{display:block;font-size:13px}
+.sp-charth span{font-size:11px;color:var(--mut)}
+.sp-seg{display:flex;background:var(--bg2);border-radius:8px;padding:2px;gap:2px;flex:0 0 auto}
+.sp-seg button{border:0;background:transparent;border-radius:6px;padding:4px 7px;font-size:11px;font-weight:700;color:var(--mut)}
+.sp-seg button[aria-pressed="true"]{background:#fff;color:var(--ink);box-shadow:0 1px 2px rgba(16,24,40,.1)}
+.sp-chart{display:block;width:100%;height:auto;overflow:visible}
+.sp-chart text{font-size:9px;fill:var(--mut2);font-family:inherit}
+.sp-chart rect.hit:hover{fill:rgba(0,82,205,.06)}
+.sp-legend{display:flex;gap:14px;margin-top:6px;font-size:11.5px;color:var(--mut)}
+.sp-legend span{display:flex;align-items:center;gap:6px}
+.sp-legend i{width:10px;height:10px;border-radius:3px;display:inline-block}
+.sp-legend b{color:var(--ink)}
+#spTip{position:fixed;z-index:20;pointer-events:none;background:var(--navy);color:#fff;font-size:11.5px;line-height:1.45;padding:7px 9px;border-radius:8px;opacity:0;transition:opacity .1s;white-space:nowrap}
+#spTip.show{opacity:1}

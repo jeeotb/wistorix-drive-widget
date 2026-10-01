@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Wistorix Drive Widget",
-  "version": "1.5.3",
+  "version": "1.5.4",
   "description": "Bong bóng Wistorix ngay trên Google Drive: xem nhanh quyền chia sẻ, trùng lặp, dung lượng và thao tác với tệp đang chọn.",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvMTyHVcMCKwIdAmFF5AJK78J4MwcKLa8HtaVoWs3W5wAG+LJnraxn4DywkZEbnwYuZ4fCCuZALofrxtha2OgtYrwc1l3gApPqMO/RFnwYgdcpRwpa2fBzkUtyHT5k+tcoBqsocRCNciHkTXX9jcZLKH0U6DKPpmXb6qmW8BdsGJghnvMjt61aUxObRTj6pAA5NTTvKmeymDSJeqEO71TjCAfNixjHytOpCH6UAWWQOoWzQkCPlX4d3bZBPR4E02FoGGh7XnYPkS8CG5/wKMmc9au1FfvwOgiIDDqUoPWQzOrgg06P7M4sjU8u/8uewRuUMphiAEkpmzPVGUbCbkzyQIDAQAB",
   "icons": {

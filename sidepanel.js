@@ -40,7 +40,7 @@
   function setOverride(id, patch) { overrides[id] = Object.assign({}, overrides[id] || {}, patch); store.set('wx_overrides', overrides); }
 
   const state = {
-    tab: 'tep',
+    tab: 'tep', range: 90, // khoảng thời gian của số liệu hoạt động: 30 | 90 | 365 ngày
     current: null, bulk: [], lastSel: '',
     open: { info: false, perm: true, dup: true, act: true, files: true, shared: true, permlog: true },
     dupKeep: {}, pickedFolder: null, inline: null, armed: null, busy: false, demoScanAt: Date.now(),
@@ -110,8 +110,8 @@
     if (e && e.code === 'AUTH') { DS.mode = 'demo'; store.set('wx_mode', 'demo'); toast('Phiên đăng nhập Google Drive đã hết. Bấm <b>Kết nối</b> để đăng nhập lại.'); render(); }
   }
   function invalidate(ids) {
-    (ids || []).forEach((id) => { delete DS.details[id]; delete DS.acts[id]; });
-    const fid = env.folderId(); if (fid) { delete DS.scans[fid]; delete DS.acts[fid]; }
+    (ids || []).forEach((id) => { delete DS.details[id]; dropActs(id); });
+    const fid = env.folderId(); if (fid) { delete DS.scans[fid]; dropActs(fid); }
     store.set('wx_bump', Date.now()); // báo bong bóng cập nhật badge
   }
   function issueList() {
@@ -172,17 +172,32 @@
     if (s < 86400 * 30) return Math.floor(s / 86400) + ' ngày trước';
     return fmtDate(iso);
   }
+  const rangeLabel = (d) => (d >= 365 ? '12 tháng' : d + ' ngày');
+  const actKey = (id) => id + '|' + state.range;
+  const dropActs = (id) => Object.keys(DS.acts).forEach((k) => { if (k.split('|')[0] === id) delete DS.acts[k]; });
+  /** chia hoạt động theo ngày / tuần / tháng (giống background.js) */
+  function seriesOf(events, days) {
+    const unit = days <= 31 ? 'day' : days <= 120 ? 'week' : 'month';
+    const startOf = (d) => { const x = new Date(d); x.setHours(0, 0, 0, 0); if (unit === 'week') x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); if (unit === 'month') x.setDate(1); return x; };
+    const next = (d) => { const x = new Date(d); if (unit === 'day') x.setDate(x.getDate() + 1); else if (unit === 'week') x.setDate(x.getDate() + 7); else x.setMonth(x.getMonth() + 1); return x; };
+    const series = [];
+    for (let t = startOf(Date.now() - days * 864e5); t <= new Date(); t = next(t)) series.push({ t: t.toISOString(), mine: 0, others: 0 });
+    const idx = new Map(series.map((b, i) => [b.t, i]));
+    events.forEach((e) => { const i = idx.get(startOf(e.time).toISOString()); if (i != null) series[i][e.actor === 'Bạn' ? 'mine' : 'others']++; });
+    return { unit, series };
+  }
   function demoActivity(item) {
+    const days = state.range;
     const h = self.WX.hash(item.id + 'act');
     const people = ['minhanh.design', 'trungkien.mkt', 'ketoan.wistorix', 'phulong.dev', 'agency.media.vn', 'thuha.review'];
     const types = ['edit', 'comment', 'permissionChange', 'edit', 'move', 'create', 'rename', 'comment'];
     const kids = env.visible().filter((x) => !x.isFolder).map((x) => x.name);
-    const n = 6 + (h % 14), events = [];
+    const n = Math.max(4, Math.round((6 + (h % 14)) * days / 40)), events = [];
     for (let i = 0; i < n; i++) {
       const hh = self.WX.hash(item.id + ':' + i);
       const type = types[hh % types.length];
       const actor = hh % 3 === 0 ? 'Bạn' : people[(hh >>> 3) % people.length];
-      const time = new Date(Date.now() - ((hh >>> 5) % (40 * 24)) * 3600e3).toISOString();
+      const time = new Date(Date.now() - ((hh >>> 5) % (days * 24)) * 3600e3).toISOString();
       const detail = type === 'permissionChange' ? (hh % 2 ? `+ ${people[(hh >>> 7) % 6]}@gmail.com (xem)` : '+ Bất kỳ ai có link (xem)') : type === 'rename' ? 'Bản nháp → Bản chính thức' : '';
       events.push({ time, type, label: { edit: 'Chỉnh sửa', comment: 'Bình luận', permissionChange: 'Thay đổi quyền', move: 'Di chuyển', create: 'Tạo mới', rename: 'Đổi tên' }[type], actor, detail, target: item.isFolder && kids.length ? kids[hh % kids.length] : '' });
     }
@@ -195,8 +210,10 @@
     o30.forEach((e) => { ac[e.actor] = (ac[e.actor] || 0) + 1; });
     const top = {};
     events.forEach((e) => { if (e.target) { top[e.target] = top[e.target] || { title: e.target, n: 0 }; top[e.target].n++; } });
+    const sr = seriesOf(events, days);
     return {
-      days: 90, events,
+      days, events, unit: sr.unit, series: sr.series,
+      rangeMine: events.filter((e) => e.actor === 'Bạn').length, rangeOthers: events.filter((e) => e.actor !== 'Bạn').length,
       stats: {
         total: events.length, last30: { all: r.length, edit: c(r, 'edit'), comment: c(r, 'comment'), share: c(r, 'permissionChange'), move: c(r, 'move') + c(r, 'rename'), create: c(r, 'create') },
         uniqueActors: new Set(events.map((e) => e.actor).filter((a) => a !== 'Bạn')).size, anonymousActs: 0,
@@ -215,12 +232,12 @@
   }
   function ensureActivity(it, force) {
     if (!live() || !it) return;
-    const a = DS.acts[it.id];
+    const k = actKey(it.id), a = DS.acts[k];
     if (!force && a && (a.status === 'loading' || Date.now() - a.at < 60e3)) return;
-    DS.acts[it.id] = { status: 'loading', at: Date.now() };
-    api('activity', { id: it.id, isFolder: !!it.isFolder })
-      .then((data) => { DS.acts[it.id] = { status: 'ok', data, at: Date.now() }; })
-      .catch((e) => { DS.acts[it.id] = { status: 'error', error: e.message, code: e.code, at: Date.now() }; handleAuthError(e); })
+    DS.acts[k] = { status: 'loading', at: Date.now() };
+    api('activity', { id: it.id, isFolder: !!it.isFolder, days: state.range })
+      .then((data) => { DS.acts[k] = { status: 'ok', data, at: Date.now() }; })
+      .catch((e) => { DS.acts[k] = { status: 'error', error: e.message, code: e.code, at: Date.now() }; handleAuthError(e); })
       .finally(() => render());
   }
   /** {data} | {loading} | {error} */
@@ -228,7 +245,7 @@
     if (!it) return { none: true };
     if (!live()) return { data: demoActivity(it) };
     ensureActivity(it);
-    const a = DS.acts[it.id];
+    const a = DS.acts[actKey(it.id)];
     if (!a || a.status === 'loading') return { loading: true };
     if (a.status === 'error') return { error: a.error };
     return { data: a.data };
@@ -388,7 +405,7 @@
     else if (a.error) act = errBox(a.error, 'act-retry');
     else {
       const ev = a.data.events.slice(0, 4);
-      act = ev.length ? `<div class="sp-tl">${ev.map(evRow).join('')}</div>` : `<div class="sp-card sp-only">${IC('check-circle')} Không có hoạt động nào trong ${a.data.days} ngày qua.</div>`;
+      act = ev.length ? `<div class="sp-tl">${ev.map(evRow).join('')}</div>` : `<div class="sp-card sp-only">${IC('check-circle')} Không có hoạt động nào trong ${rangeLabel(a.data.days)} qua.</div>`;
       act += `<button class="sp-btn ghost" data-act="tab" data-tab="hieuqua">Xem số liệu đầy đủ ${IC('chev-r')}</button>`;
     }
     html += sec('act', 'Hoạt động gần đây', act, a.data ? a.data.stats.last30.all + ' lần / 30 ngày' : null, true);
@@ -469,11 +486,11 @@
     else if (a.error) log = errBox(a.error, 'folder-act-retry');
     else {
       const ev = a.data.events.filter((e) => e.type === 'permissionChange').slice(0, 6);
-      log = ev.length ? `<div class="sp-tl">${ev.map(evRow).join('')}</div>` : `<div class="sp-card sp-only">${IC('check-circle')} Không có thay đổi quyền nào trong ${a.data.days} ngày qua.</div>`;
+      log = ev.length ? `<div class="sp-tl">${ev.map(evRow).join('')}</div>` : `<div class="sp-card sp-only">${IC('check-circle')} Không có thay đổi quyền nào trong ${rangeLabel(a.data.days)} qua.</div>`;
       if (a.data.activityError) log += `<div class="sp-note">Nhật ký chưa lấy được: ${esc(a.data.activityError.message)}${a.data.activityError.code === 'SCOPE' ? ' · <a data-act="connect">Kết nối lại</a> để cấp quyền xem hoạt động.' : ''}</div>`;
     }
     const nPerm = a.data ? a.data.events.filter((e) => e.type === 'permissionChange').length : null;
-    html += sec('permlog', `Thay đổi quyền ${a.data ? a.data.days : 90} ngày`, log, nPerm != null ? nPerm + ' lần' : null, true);
+    html += sec('permlog', `Thay đổi quyền ${rangeLabel(a.data ? a.data.days : state.range)}`, log, nPerm != null ? nPerm + ' lần' : null, true);
 
     html += storageBlock();
     return html;
@@ -534,10 +551,11 @@
         ${tile(st.othersActors30 != null ? st.othersActors30 : st.uniqueActors, 'Người khác tương tác', false, '30 ngày')}
         ${tile(ot.all, 'Lượt tương tác của người khác', false, '30 ngày')}
         ${tile(st.canSeePerms === false ? '—' : (st.sharedWith != null ? st.sharedWith : st.peopleWithAccess), 'Người được chia sẻ', false, 'không tính bạn')}
-        ${subj.isFolder ? tile(st.filesTouched != null ? st.filesTouched : st.topFiles.length, 'Tệp có thay đổi', false, '90 ngày') : tile(st.revisions, 'Phiên bản đã lưu')}
+        ${subj.isFolder ? tile(st.filesTouched != null ? st.filesTouched : st.topFiles.length, 'Tệp có thay đổi', false, rangeLabel(a.data.days)) : tile(st.revisions, 'Phiên bản đã lưu')}
         ${subj.isFolder ? tile(l.share, 'Lần đổi quyền', l.share > 0, '30 ngày') : tile(st.comments, 'Bình luận', false, st.openComments ? st.openComments + ' chưa xử lý' : '')}
         ${subj.isFolder && pubInside != null ? tile(pubInside, 'Tệp công khai bên trong', pubInside > 0, pubInside ? 'xem tab Bảo mật' : '') : tile(st.isPublic ? 'Có' : 'Không', subj.isFolder ? 'Thư mục công khai' : 'Link công khai', st.isPublic)}
       </div>`;
+      body += chartBlock(a.data);
       const rowsT = [['Tạo mới / tải lên', 'create'], ['Chỉnh sửa', 'edit'], ['Di chuyển / đổi tên', 'move'], ['Bình luận', 'comment'], ['Đổi quyền', 'share']];
       body += `<div class="sp-card sp-split" style="margin-top:10px"><div class="hd"><span>Hoạt động 30 ngày</span><b>Bạn</b><b>Người khác</b></div>
         ${rowsT.map(([k, key]) => `<div class="r"><span>${k}</span><b class="${me[key] ? '' : 'z'}">${me[key] || 0}</b><b class="${ot[key] ? 'o' : 'z'}">${ot[key] || 0}</b></div>`).join('')}
@@ -552,16 +570,63 @@
         ${st.editors && st.editors.length ? `<div class="sp-kv"><span class="k">Người đã sửa</span><span class="v">${esc(st.editors.slice(0, 4).join(', '))}</span></div>` : ''}
         ${st.commenters && st.commenters.length ? `<div class="sp-kv"><span class="k">Người bình luận</span><span class="v">${esc(st.commenters.slice(0, 4).join(', '))}</span></div>` : ''}</div>`;
       if (subj.isFolder && st.topFiles.length) {
-        body += `<h2 class="sp-h2" style="margin-top:14px">Tệp có nhiều thay đổi nhất<span class="meta">90 ngày</span></h2><div class="sp-card sp-rows">${st.topFiles.map((t) => `<div class="sp-row"><div class="sp-ri blue">${IC('file')}</div><div class="sp-rm"><b>${esc(t.title)}</b></div><b>${t.n}</b></div>`).join('')}</div>`;
+        body += `<h2 class="sp-h2" style="margin-top:14px">Tệp có nhiều thay đổi nhất<span class="meta">${rangeLabel(a.data.days)}</span></h2><div class="sp-card sp-rows">${st.topFiles.map((t) => `<div class="sp-row"><div class="sp-ri blue">${IC('file')}</div><div class="sp-rm"><b>${esc(t.title)}</b></div><b>${t.n}</b></div>`).join('')}</div>`;
       }
       const ev = a.data.events.slice(0, 12);
-      body += `<h2 class="sp-h2" style="margin-top:14px">Nhật ký ${a.data.days} ngày<span class="meta">${a.data.events.length} sự kiện</span></h2>`;
-      body += ev.length ? `<div class="sp-tl">${ev.map(evRow).join('')}</div>` : `<div class="sp-card sp-only">${IC('check-circle')} Không có hoạt động nào trong ${a.data.days} ngày qua.</div>`;
+      body += `<h2 class="sp-h2" style="margin-top:14px">Nhật ký gần nhất<span class="meta">${Math.min(12, a.data.events.length)} / ${(a.data.rangeMine || 0) + (a.data.rangeOthers || 0) || a.data.events.length} sự kiện</span></h2>`;
+      body += ev.length ? `<div class="sp-tl">${ev.map(evRow).join('')}</div>` : `<div class="sp-card sp-only">${IC('check-circle')} Không có hoạt động nào trong ${rangeLabel(a.data.days)} qua.</div>`;
       if (a.data.activityError) body += `<div class="sp-note">Nhật ký chi tiết chưa lấy được: ${esc(a.data.activityError.message)}${a.data.activityError.code === 'SCOPE' ? ' · <a data-act="connect">Kết nối lại</a> để cấp quyền xem hoạt động.' : ''}</div>`;
     }
     html += sec('drivestats', `Số liệu từ Google Drive ${tag()}`, body);
 
     return html;
+  }
+
+  /* ───────── BIỂU ĐỒ HOẠT ĐỘNG THEO THỜI GIAN ─────────
+     Cột chồng: Bạn (xanh nhạt, dưới) + Người khác (xanh thương hiệu, trên). Bảng Bạn/Người khác bên dưới là bản số. */
+  const C_ME = '#7FA7E8', C_OT = '#0052CD';
+  function bucketLabel(t, unit, long) {
+    const d = new Date(t), dd = String(d.getDate()).padStart(2, '0'), mm = d.getMonth() + 1;
+    if (unit === 'month') return long ? `Tháng ${mm}/${d.getFullYear()}` : `T${mm}/${String(d.getFullYear()).slice(2)}`;
+    if (unit === 'week') return long ? `Tuần từ ${dd}/${mm}` : `${dd}/${mm}`;
+    return `${dd}/${mm}`;
+  }
+  function chartBlock(data) {
+    const seg = `<div class="sp-seg" role="group" aria-label="Khoảng thời gian">${[[30, '30 ngày'], [90, '90 ngày'], [365, '12 tháng']]
+      .map(([d, t]) => `<button data-act="range" data-d="${d}" aria-pressed="${state.range === d}">${t}</button>`).join('')}</div>`;
+    const ser = data.series || [];
+    if (!ser.length) return `<div class="sp-card sp-chartc">${seg}<div class="sp-note">Chưa có dữ liệu theo thời gian. Bấm ↻ tải lại extension.</div></div>`;
+    const W = 340, H = 132, L = 26, R = 4, T = 8, B = 20, pw = W - L - R, ph = H - T - B;
+    const max = Math.max(1, ...ser.map((b) => b.mine + b.others));
+    const step = max <= 4 ? 1 : Math.pow(10, Math.floor(Math.log10(max / 2)));
+    const top = Math.ceil(max / 2 / step) * step * 2 || 2;
+    const y = (v) => T + ph - (v / top) * ph;
+    const slot = pw / ser.length, bw = Math.max(2, Math.min(18, slot - 2));
+    let bars = '', hits = '';
+    ser.forEach((b, i) => {
+      const x = L + i * slot + (slot - bw) / 2, tot = b.mine + b.others;
+      const r = Math.min(3, bw / 2);
+      const topPath = (x0, y0, w, h) => (h <= 0 ? '' : `M${x0} ${y0 + h}V${y0 + r}Q${x0} ${y0} ${x0 + r} ${y0}H${x0 + w - r}Q${x0 + w} ${y0} ${x0 + w} ${y0 + r}V${y0 + h}Z`);
+      const hMe = b.mine ? Math.max(1.5, (b.mine / top) * ph) : 0, hOt = b.others ? Math.max(1.5, (b.others / top) * ph) : 0;
+      const gap = hMe && hOt ? 2 : 0;
+      const yMe = T + ph - hMe, yOt = yMe - gap - hOt;
+      if (hMe) bars += hOt ? `<rect x="${x}" y="${yMe}" width="${bw}" height="${hMe}" fill="${C_ME}"/>` : `<path d="${topPath(x, yMe, bw, hMe)}" fill="${C_ME}"/>`;
+      if (hOt) bars += `<path d="${topPath(x, yOt, bw, hOt)}" fill="${C_OT}"/>`;
+      const tip = `<b>${esc(bucketLabel(b.t, data.unit, true))}</b><br>Bạn: ${b.mine}<br>Người khác: ${b.others}`;
+      hits += `<rect class="hit" x="${L + i * slot}" y="${T}" width="${slot}" height="${ph}" fill="transparent" data-tip="${esc(tip)}"><title>${esc(bucketLabel(b.t, data.unit, true))}: bạn ${b.mine}, người khác ${b.others}</title></rect>`;
+      void tot;
+    });
+    const grid = [0, top / 2, top].map((v) => `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" stroke="#EEF0F4"/><text x="${L - 6}" y="${y(v) + 3.5}" text-anchor="end">${v}</text>`).join('');
+    const xi = [0, Math.floor((ser.length - 1) / 2), ser.length - 1];
+    const xl = [...new Set(xi)].map((i, k, arr) => `<text x="${L + i * slot + slot / 2}" y="${H - 5}" text-anchor="${k === 0 ? 'start' : k === arr.length - 1 ? 'end' : 'middle'}">${esc(bucketLabel(ser[i].t, data.unit, false))}</text>`).join('');
+    const per = { day: 'mỗi cột 1 ngày', week: 'mỗi cột 1 tuần', month: 'mỗi cột 1 tháng' }[data.unit] || '';
+    const trunc = data.stats && data.stats.truncated;
+    return `<div class="sp-card sp-chartc" style="margin-top:10px">
+      <div class="sp-charth"><div><b>Theo thời gian</b><span>${esc(per)}</span></div>${seg}</div>
+      <svg viewBox="0 0 ${W} ${H}" class="sp-chart" role="img" aria-label="Biểu đồ hoạt động ${esc(rangeLabel(data.days))}: bạn ${data.rangeMine || 0}, người khác ${data.rangeOthers || 0}">${grid}${bars}${xl}${hits}</svg>
+      <div class="sp-legend"><span><i style="background:${C_ME}"></i>Bạn <b>${data.rangeMine || 0}</b></span><span><i style="background:${C_OT}"></i>Người khác <b>${data.rangeOthers || 0}</b></span></div>
+      ${trunc ? `<div class="sp-note">Thư mục có rất nhiều hoạt động: biểu đồ tính trên 1.000 hoạt động gần nhất, giai đoạn cũ hơn có thể thiếu.</div>` : ''}
+    </div>`;
   }
 
   /* ───────── RENDER ───────── */
@@ -651,6 +716,7 @@
       case 'jump': jump(el.dataset.to); break;
       case 'dashboard': case 'transfer': newTab(CFG.dashboardUrl); break;
       case 'pro': newTab(CFG.proUrl); break;
+      case 'range': { const d = +el.dataset.d; if (d && d !== state.range) { state.range = d; store.set('wx_range', d); render(); } break; }
       case 'open-drive': newTab('https://drive.google.com/drive/my-drive'); break;
       case 'grp': state.open[el.dataset.id] = !state.open[el.dataset.id]; render(); break;
       case 'overview': state.current = null; state.inline = null; ensureScan(); render(); $('wxBody').scrollTop = 0; break;
@@ -848,6 +914,7 @@
     overrides = await store.get('wx_overrides', {});
     state.tab = await store.get('wx_tab', 'tep');
     if (!TABS.includes(state.tab)) state.tab = 'tep';
+    state.range = [30, 90, 365].includes(await store.get('wx_range', 90)) ? await store.get('wx_range', 90) : 90;
     if ((await store.get('wx_mode', 'demo')) === 'live') {
       try {
         const st2 = await api('status');
@@ -859,6 +926,14 @@
       const el = e.target.closest('[data-act]');
       if (!el || el.disabled || el.tagName === 'SELECT') return;
       onAction(el.dataset.act, el);
+    });
+    const tipEl = document.createElement('div'); tipEl.id = 'spTip'; document.body.appendChild(tipEl);
+    document.addEventListener('pointermove', (e) => {
+      const h = e.target.closest && e.target.closest('rect.hit');
+      if (!h) { tipEl.classList.remove('show'); return; }
+      tipEl.innerHTML = h.dataset.tip; tipEl.classList.add('show');
+      const w = tipEl.offsetWidth, x = Math.min(window.innerWidth - w - 8, Math.max(8, e.clientX - w / 2));
+      tipEl.style.left = x + 'px'; tipEl.style.top = Math.max(8, e.clientY - tipEl.offsetHeight - 12) + 'px';
     });
     document.addEventListener('change', (e) => {
       const el = e.target;

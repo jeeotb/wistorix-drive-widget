@@ -182,10 +182,11 @@ async function activityOf({ id, isFolder, days = 90 }) {
     isFolder ? Promise.resolve([]) : gfetch(`/files/${id}/comments`, { query: { pageSize: '100', includeDeleted: 'false', fields: 'comments(id,createdTime,resolved,author(displayName,emailAddress,me),replies(author(displayName,me)))' } }).then((r) => r.comments || []).catch(() => []),
   ]);
 
-  // Drive Activity API: tối đa 3 trang x 100 sự kiện
+  // Drive Activity API: mỗi trang 100 hoạt động; khoảng thời gian dài thì lấy nhiều trang hơn (tối đa 1.000)
+  const maxPages = days <= 30 ? 3 : days <= 90 ? 5 : 10;
   let activities = [], activityError = null, pageToken;
   try {
-    for (let i = 0; i < 3; i++) {
+    for (let i = 0; i < maxPages; i++) {
       const body = { [isFolder ? 'ancestorName' : 'itemName']: `items/${file.id || id}`, pageSize: 100, filter: `time >= "${since}"`, ...(pageToken ? { pageToken } : {}) };
       const r = await authFetch('https://driveactivity.googleapis.com/v2/activity:query', { method: 'POST', body });
       activities.push(...(r.activities || []));
@@ -260,8 +261,24 @@ async function activityOf({ id, isFolder, days = 90 }) {
   const actorCount = {};
   others30.forEach((e) => { actorCount[e.actor] = (actorCount[e.actor] || 0) + 1; });
 
+  // chuỗi thời gian cho biểu đồ: ngày (≤31 ngày), tuần (≤120 ngày), tháng (dài hơn)
+  const unit = days <= 31 ? 'day' : days <= 120 ? 'week' : 'month';
+  const startOf = (d) => {
+    const x = new Date(d); x.setHours(0, 0, 0, 0);
+    if (unit === 'week') x.setDate(x.getDate() - ((x.getDay() + 6) % 7));
+    if (unit === 'month') x.setDate(1);
+    return x;
+  };
+  const next = (d) => { const x = new Date(d); if (unit === 'day') x.setDate(x.getDate() + 1); else if (unit === 'week') x.setDate(x.getDate() + 7); else x.setMonth(x.getMonth() + 1); return x; };
+  const series = [];
+  for (let t = startOf(since); t <= new Date(); t = next(t)) series.push({ t: t.toISOString(), mine: 0, others: 0 });
+  const idx = new Map(series.map((b, i) => [b.t, i]));
+  events.forEach((e) => { const k = startOf(e.time).toISOString(); const i = idx.get(k); if (i != null) series[i][isMe(e) ? 'mine' : 'others']++; });
+
   return {
-    days, since, activityError,
+    days, since, activityError, unit, series,
+    oldest: events.length ? events[events.length - 1].time : null,
+    rangeMine: events.filter(isMe).length, rangeOthers: events.filter((e) => !isMe(e)).length,
     events: events.slice(0, 60),
     stats: {
       total: events.length,

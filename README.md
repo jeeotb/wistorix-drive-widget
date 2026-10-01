@@ -11,6 +11,11 @@ ID extension cố định: `kdcfklgimlbbkepipbkhbjlkgjiknckl`. Khoá nằm ở `
 
 Sau mỗi lần sửa code: bấm ↻ ở thẻ extension, rồi tải lại tab Drive.
 
+## Có gì mới ở 1.5.4
+- Tab Hiệu quả có **biểu đồ hoạt động theo thời gian** (cột chồng Bạn / Người khác, rê chuột xem số từng cột) và nút chọn khoảng **30 ngày / 90 ngày / 12 tháng** (nhớ lựa chọn). 30 ngày chia theo ngày, 90 ngày theo tuần, 12 tháng theo tháng.
+- Lấy tối đa 1.000 hoạt động mỗi lần (trước là 300). Thư mục nhiều hoạt động hơn thì có ghi chú giai đoạn cũ có thể thiếu.
+- Khoảng thời gian đã chọn áp dụng cho cả nhật ký, "Tệp có thay đổi" và lịch sử đổi quyền ở tab Bảo mật.
+
 ## Có gì mới ở 1.5.3
 - Bỏ hẳn phần **Link theo dõi** (tab Hiệu quả) và thẻ "Chia sẻ bằng link theo dõi" (tab Tệp). Tab Hiệu quả giờ chỉ còn số liệu thật từ Google Drive.
 
