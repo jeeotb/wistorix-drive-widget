@@ -11,6 +11,9 @@ ID extension cố định: `kdcfklgimlbbkepipbkhbjlkgjiknckl`. Khoá nằm ở `
 
 Sau mỗi lần sửa code: bấm ↻ ở thẻ extension, rồi tải lại tab Drive.
 
+## Có gì mới ở 1.5.3
+- Bỏ hẳn phần **Link theo dõi** (tab Hiệu quả) và thẻ "Chia sẻ bằng link theo dõi" (tab Tệp). Tab Hiệu quả giờ chỉ còn số liệu thật từ Google Drive.
+
 ## Có gì mới ở 1.5.2
 - Tab Hiệu quả diễn giải lại số liệu Drive: thêm 1 câu tóm tắt bằng lời ở đầu, tách hoạt động của **Bạn** và **Người khác** (bảng 2 cột), thêm danh sách người tương tác nhiều nhất.
 - Sửa số liệu dễ hiểu sai: "Người được chia sẻ" không còn tính chủ sở hữu; "Tệp có thay đổi" đếm đủ (trước bị giới hạn 5); với thư mục đang xem, ô cuối hiện số tệp công khai bên trong (khớp tab Bảo mật).
@@ -22,7 +25,7 @@ Sau mỗi lần sửa code: bấm ↻ ở thẻ extension, rồi tải lại tab
 - Side panel làm lại giao diện, gộp thành **3 tab**:
   - **Tệp**: tệp đang chọn, 6 thao tác nhanh (copy link, đổi tên, chuyển, gắn sao, tải về, xóa), ai có quyền truy cập (thu hồi, đặt thời hạn), bản trùng, hoạt động gần đây. Chưa chọn tệp thì hiện danh sách mục trong thư mục đang xem.
   - **Bảo mật**: điểm an toàn 0 đến 100 của thư mục đang xem, 3 thẻ rủi ro (tệp công khai, người được chia sẻ, bản trùng), danh sách "Việc nên làm ngay" có nút xử lý, tệp đang chia sẻ, lịch sử thay đổi quyền 90 ngày, dung lượng. Badge đỏ trên tab = số tệp công khai + số nhóm trùng.
-  - **Hiệu quả**: số liệu hoạt động từ Google Drive (tệp hoặc cả thư mục) và phần **Link theo dõi**. Link theo dõi đang là bản xem trước với số liệu mẫu, cần backend Wistorix mới chạy thật.
+  - **Hiệu quả**: số liệu hoạt động từ Google Drive (tệp hoặc cả thư mục).
 - Tab đang mở được nhớ lại. Menu nhanh của bong bóng mở thẳng đúng tab.
 - Quét thư mục (Drive thật) lấy thêm danh sách người được chia sẻ và số nhóm trùng. Hoạt động của "Drive của tôi" nay lấy được (đổi `root` sang ID thật).
 - Giao diện side panel nằm ở `sidepanel.css`, không dùng `widget.css` nữa (bong bóng trên Drive vẫn dùng `widget.css`).

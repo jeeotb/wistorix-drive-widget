@@ -2,7 +2,7 @@
    WISTORIX · DRIVE WIDGET: SIDE PANEL (bản 1.5, giao diện gộp 3 tab)
    Tab TỆP: tệp đang chọn, thao tác nhanh, ai có quyền, trùng lặp, hoạt động gần đây.
    Tab BẢO MẬT: điểm an toàn của thư mục đang xem, rủi ro, việc nên làm, lịch sử đổi quyền, dung lượng.
-   Tab HIỆU QUẢ: số liệu hoạt động từ Google Drive + link theo dõi (lượt mở, người xem, nguồn truy cập).
+   Tab HIỆU QUẢ: số liệu hoạt động từ Google Drive (bạn và người khác, theo 30/90 ngày).
    Nhận "snapshot" từ content.js và gọi Drive API qua background.js.
    Hai chế độ: DỮ LIỆU MẪU (mặc định) · DRIVE THẬT (bấm "Kết nối").
    ================================================================ */
@@ -12,7 +12,6 @@
 
   const CFG = {
     dashboardUrl: 'https://ws-extension-demo.vercel.app/',
-    linkDomain: 'wistorix.link',
     // bản miễn phí chỉ hiện N mục đầu của danh sách "Tệp đang chia sẻ"; xem hết thì mở bản trả phí
     freeListLimit: 5,
     proName: 'Wistorix Pro',
@@ -403,7 +402,6 @@
       <div class="sp-kv"><span class="k">Sửa đổi gần nhất</span><span class="v">${esc(v.mod)}</span></div>
       <div class="sp-kv"><span class="k">Vị trí</span><span class="v">${esc(v.path)}</span></div></div>`, null, true);
 
-    html += `<div class="sp-cta">${IC('link')}<div class="t"><b>Chia sẻ bằng link theo dõi</b>Biết ai mở, mở bao nhiêu lần, đến từ kênh nào.</div><button data-act="tab" data-tab="hieuqua">Tạo link</button></div>`;
     return html;
   }
 
@@ -560,55 +558,10 @@
       body += `<h2 class="sp-h2" style="margin-top:14px">Nhật ký ${a.data.days} ngày<span class="meta">${a.data.events.length} sự kiện</span></h2>`;
       body += ev.length ? `<div class="sp-tl">${ev.map(evRow).join('')}</div>` : `<div class="sp-card sp-only">${IC('check-circle')} Không có hoạt động nào trong ${a.data.days} ngày qua.</div>`;
       if (a.data.activityError) body += `<div class="sp-note">Nhật ký chi tiết chưa lấy được: ${esc(a.data.activityError.message)}${a.data.activityError.code === 'SCOPE' ? ' · <a data-act="connect">Kết nối lại</a> để cấp quyền xem hoạt động.' : ''}</div>`;
-      body += `<div class="sp-note">Google chỉ ghi lượt xem trên tài khoản Workspace và chỉ với người cùng tổ chức. Muốn đo lượt mở, người xem và nguồn truy cập, hãy chia sẻ qua link theo dõi bên dưới.</div>`;
     }
     html += sec('drivestats', `Số liệu từ Google Drive ${tag()}`, body);
 
-    // 2) Link theo dõi
-    html += sec('links', `Link theo dõi <span class="sp-tag soon">${live() ? 'SẮP CÓ' : 'BẢN XEM TRƯỚC'}</span>`, trackedLinks(subj, sv));
     return html;
-  }
-
-  function trackedLinks(subj, sv) {
-    const user = ((DS.me && DS.me.emailAddress) || env.account() || 'ban').split('@')[0].replace(/[^a-z0-9]/gi, '').toLowerCase() || 'ban';
-    const slug = String((sv && sv.name) || subj.name || 'tai-lieu').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/gi, 'd')
-      .replace(/\.[a-z0-9]{2,5}$/i, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 24) || 'tai-lieu';
-    const channels = [['Group Facebook', 'fb'], ['Zalo', 'zalo'], ['Email', 'mail'], ['Khác', 'x']];
-    if (live()) {
-      return `<div class="sp-tiles">
-          <div class="sp-tile ph"><b>—</b><span>Lượt mở</span></div>
-          <div class="sp-tile ph"><b>—</b><span>Người xem</span></div>
-          <div class="sp-tile ph"><b>—</b><span>Tỷ lệ tải về</span></div></div>
-        <div class="sp-links" style="margin-top:10px"><div class="sp-over">LINK THEO DÕI</div>
-          <p>Mỗi kênh (group Facebook, Zalo, email…) một link riêng. Wistorix đếm lượt mở, người xem và nguồn truy cập, còn tệp gốc trên Drive vẫn riêng tư.</p>
-          <p>Tính năng này cần máy chủ Wistorix nên chưa bật trong bản thử nghiệm. Chuyển sang dữ liệu mẫu để xem trước giao diện.</p>
-          <button class="add" data-act="link-new">+ Tạo link cho kênh mới</button></div>`;
-    }
-    // bản xem trước với số liệu mẫu, ổn định theo id
-    const h = self.WX.hash(subj.id + 'links');
-    const opens = 120 + (h % 880), viewers = Math.round(opens * (0.55 + ((h >>> 4) % 25) / 100)), dl = 8 + ((h >>> 9) % 23);
-    const w = [46 + (h % 12), 24 + ((h >>> 3) % 10), 12 + ((h >>> 6) % 8)]; w.push(Math.max(3, 100 - w[0] - w[1] - w[2]));
-    const sum = w.reduce((x, y) => x + y, 0); const pc = w.map((x) => Math.round((x / sum) * 100));
-    const pts = []; let y = 78;
-    for (let i = 0; i < 14; i++) { const hh = self.WX.hash(subj.id + 'd' + i); y = Math.max(10, Math.min(86, y - 3 - (hh % 9) + ((hh >>> 4) % 6))); pts.push([Math.round((i * 342) / 13), y]); }
-    const spike = 5 + (h % 6); pts[spike][1] = Math.max(8, pts[spike][1] - 18);
-    const line = pts.map((p, i) => (i ? 'L' : 'M') + p[0] + ' ' + p[1]).join(' ');
-    return `<div class="sp-tiles">
-        <div class="sp-tile"><b>${opens.toLocaleString('vi-VN')}</b><span>Lượt mở</span><div class="d">↑ ${6 + (h % 30)}% so với kỳ trước</div></div>
-        <div class="sp-tile"><b>${viewers.toLocaleString('vi-VN')}</b><span>Người xem</span><div class="d" style="color:var(--mut)">không trùng lặp</div></div>
-        <div class="sp-tile"><b>${dl}%</b><span>Tải về</span><div class="d" style="color:var(--mut)">trên lượt mở</div></div></div>
-      <div class="sp-card sp-chart" style="margin-top:10px"><div class="sp-h2" style="margin:0 0 6px">Lượt mở theo ngày<span class="meta">14 ngày</span></div>
-        <svg viewBox="0 0 342 96" role="img" aria-label="Biểu đồ lượt mở 14 ngày gần nhất"><line x1="0" y1="95" x2="342" y2="95" stroke="#E4E7EE"/>
-          <path d="${line} L342 95 L0 95 Z" fill="#0052CD" fill-opacity="0.1"/><path d="${line}" fill="none" stroke="#0052CD" stroke-width="2.5" stroke-linejoin="round"/>
-          <circle cx="${pts[spike][0]}" cy="${pts[spike][1]}" r="4" fill="#E8590C"/></svg>
-        <div class="sp-legend"><i></i>Ngày đăng bài vào group Facebook</div></div>
-      <div class="sp-card" style="padding:12px;margin-top:10px"><div class="sp-h2" style="margin:0 0 10px">Nguồn truy cập</div><div class="sp-bars">
-        ${channels.map(([n], i) => `<div class="sp-barrow"><span>${n}</span><i><em style="width:${pc[i]}%;${i === 3 ? 'background:#9AA6BF' : ''}"></em></i><b>${pc[i]}%</b></div>`).join('')}</div></div>
-      <div class="sp-links" style="margin-top:10px"><div class="sp-over">LINK THEO DÕI</div>
-        ${channels.slice(0, 3).map(([n, k], i) => `<div class="sp-lk"><div class="t"><b>${CFG.linkDomain}/${esc(user)}/${esc(slug)}-${k}</b><span>${n} · ${Math.round((opens * pc[i]) / 100)} lượt mở</span></div><button data-act="link-copy" data-url="https://${CFG.linkDomain}/${esc(user)}/${esc(slug)}-${k}">Copy</button></div>`).join('')}
-        <p>Mỗi kênh một link riêng để biết khách đến từ đâu. Tệp gốc trên Drive vẫn riêng tư.</p>
-        <button class="add" data-act="link-new">+ Tạo link cho kênh mới</button></div>
-      <div class="sp-note">Số liệu ở mục này là dữ liệu mẫu để xem trước giao diện. Link theo dõi thật cần máy chủ Wistorix và sẽ có ở bản sau.</div>`;
   }
 
   /* ───────── RENDER ───────── */
@@ -834,9 +787,6 @@
         break;
       }
 
-      /* tab Hiệu quả */
-      case 'link-copy': toast((await copyText(el.dataset.url)) ? 'Đã copy link mẫu. Link theo dõi thật sẽ có ở bản sau.' : 'Không copy được'); break;
-      case 'link-new': toast('Link theo dõi đang được phát triển, cần máy chủ Wistorix. Mình sẽ báo khi bật.'); break;
       default: break;
     }
   }
